@@ -116,3 +116,37 @@ describe('metas', () => {
     expect(a.mesesRestantes).toBe(12); expect(a.necesarioMes).toBe(500); expect(a.aTiempo).toBe(false);
   });
 });
+
+import { calendarioPagos } from '../domain/ics';
+import { toRecurrente } from '../domain/model';
+describe('recordatorios de calendario (.ics)', () => {
+  const recs = [
+    toRecurrente({ RECURRENTE_ID: 'REC-001', DESCRIPCION: 'Luz casa, Tilda', TIPO: 'EGRESO', MONTO_ESTIMADO: 120, MONEDA: 'PEN', FRECUENCIA: 'MENSUAL', DIA: 15, AVISAR_DIAS_ANTES: 3, ACTIVO: 'SÍ' }),
+    toRecurrente({ RECURRENTE_ID: 'REC-002', DESCRIPCION: 'Seguro', TIPO: 'EGRESO', FRECUENCIA: 'TRIMESTRAL', DIA: 31, AVISAR_DIAS_ANTES: 0, ACTIVO: 'SÍ' }),
+    toRecurrente({ RECURRENTE_ID: 'REC-003', DESCRIPCION: 'Inactivo', TIPO: 'EGRESO', FRECUENCIA: 'MENSUAL', DIA: 1, ACTIVO: 'NO' }),
+    toRecurrente({ RECURRENTE_ID: 'REC-004', DESCRIPCION: 'Sueldo', TIPO: 'INGRESO', FRECUENCIA: 'MENSUAL', DIA: 28, ACTIVO: 'SÍ' }),
+  ];
+  it('solo pagos activos, con repetición, aviso N días antes a las 9:00 y sin montos por defecto', () => {
+    const { ics, eventos } = calendarioPagos(recs, '2026-11-24', { incluirMontos: false, ahora: new Date('2026-11-24T12:00:00Z') });
+    expect(eventos).toBe(2);
+    expect(ics).toContain('DTSTART;VALUE=DATE:20261215');
+    expect(ics).toContain('RRULE:FREQ=MONTHLY;BYMONTHDAY=15');
+    expect(ics).toContain('TRIGGER:-PT63H');
+    expect(ics).toContain('SUMMARY:Pago: Luz casa\\, Tilda');
+    expect(ics).not.toMatch(/S\/\s?120/);
+    expect(ics).toContain('RRULE:FREQ=MONTHLY;INTERVAL=3;BYMONTHDAY=-1');
+    expect(ics).not.toContain('Inactivo'); expect(ics).not.toContain('Sueldo');
+    expect(ics.split('\r\n').every((l) => new TextEncoder().encode(l).length <= 75)).toBe(true);
+  });
+  it('con montos si se pide', () => {
+    expect(calendarioPagos(recs, '2026-11-24', { incluirMontos: true }).ics).toMatch(/SUMMARY:Pago: Luz casa\\, Tilda · S\/\s120\.00/);
+  });
+});
+
+import { evaluarPermisos } from '../auth/driveCheck';
+describe('revisión de con quién está compartida la hoja', () => {
+  const dueño = { type: 'user', role: 'owner', emailAddress: 'yo@example.com' };
+  it('privada si solo está el propietario', () => expect(evaluarPermisos([dueño], 'yo@example.com')).toEqual({ estado: 'privada' }));
+  it('alerta si cualquiera con el enlace puede verla', () => expect(evaluarPermisos([dueño, { type: 'anyone', role: 'reader' }], 'yo@example.com')).toEqual({ estado: 'enlace', rol: 'ver' }));
+  it('lista a otras personas', () => expect(evaluarPermisos([dueño, { type: 'user', role: 'writer', emailAddress: 'otro@example.com' }], 'yo@example.com')).toEqual({ estado: 'personas', correos: ['otro@example.com'] }));
+});

@@ -7,6 +7,7 @@ import { CLASES_CATEGORIA, CLASES_PATRIMONIO, FRECUENCIAS, TIPOS_50_30_20, TIPOS
 import type { Opcion } from '../../ui/kit';
 import { Status, toast } from '../../ui/kit';
 import { activarBiometria } from '../lock/LockScreens';
+import { SeguridadCard } from './Seguridad';
 import { tieneEnvolturaBiometrica } from '../../auth/vault';
 import { dinero } from '../../domain/format';
 import { toIsoDate } from '../../domain/dates';
@@ -176,6 +177,7 @@ export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe, seccionI
         <button className="btn secondary" onClick={() => void sync()} disabled={store.syncing}>{store.syncing ? 'Sincronizando…' : 'Sincronizar ahora'}</button>
         {sheetUrl && <a className="btn secondary" href={sheetUrl} target="_blank" rel="noopener noreferrer">Abrir mi hoja en Google Sheets (bitácora y respaldo)</a>}
       </section>
+      <SeguridadCard />
       <section className="card stack">
         <h2>Este dispositivo</h2>
         <p className="muted">Bloqueo: {st.webauthnCredentialId ? (tieneEnvolturaBiometrica() ? 'Face ID / huella abre la app sin PIN (PIN de respaldo)' : 'Al abrir la app: PIN (este dispositivo no entrega a la web la llave de Face ID). Al volver a la app abierta: Face ID') : 'Solo PIN'}</p>

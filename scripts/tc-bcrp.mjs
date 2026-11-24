@@ -18,11 +18,26 @@ export function parsear(json) {
   return out.sort((a, b) => a[0].localeCompare(b[0]));
 }
 
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+let formato = null; // el primer formato de URL que funcione se usa para el resto
+
 async function bajar(desde, hasta) {
-  const url = `https://estadisticas.bcrp.gob.pe/estadisticas/series/api/${SERIE}/json/${desde}/${hasta}`;
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (finanzas-pwa build)', Accept: 'application/json' }, signal: AbortSignal.timeout(30000) });
-  if (!r.ok) throw new Error(`BCRP ${r.status}`);
-  return parsear(JSON.parse((await r.text()).trim()));
+  const base = `https://estadisticas.bcrp.gob.pe/estadisticas/series/api/${SERIE}/json`;
+  const variantes = formato ? [formato] : [
+    (a, b) => `${base}/${a}/${b}/esp`,
+    (a, b) => `${base}/${a}/${b}`,
+    (a, b) => `${base}/${a.replace(/-0?/g, '-')}/${b.replace(/-0?/g, '-')}/esp`,
+  ];
+  let ultimo = '';
+  for (const v of variantes) {
+    const url = v(desde, hasta);
+    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json,text/plain,*/*', 'Accept-Language': 'es-PE,es;q=0.9' }, signal: AbortSignal.timeout(30000) });
+    const txt = (await r.text()).trim();
+    if (r.ok && txt.startsWith('{')) { formato = v; return parsear(JSON.parse(txt)); }
+    ultimo = `${r.status} ${r.headers.get('content-type')} ${url} → ${txt.slice(0, 160).replace(/\s+/g, ' ')}`;
+    console.warn(`  intento fallido: ${ultimo}`);
+  }
+  throw new Error(ultimo);
 }
 
 async function main() {

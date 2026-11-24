@@ -218,3 +218,7 @@ input[type='search'] { padding-left: 34px; background-image: url("data:image/svg
 .meta { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
 .meta:last-child { border-bottom: 0; }
 @media (prefers-reduced-motion: reduce) { .budget-bar > span { transition: none; } }
+.seg-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+.seg-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.seg-main.check { flex-direction: row; align-items: flex-start; gap: 10px; }
+.seg-det { display: block; margin-top: 2px; }

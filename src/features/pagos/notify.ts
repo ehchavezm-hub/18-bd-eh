@@ -2,7 +2,7 @@
  * Avisos de pagos fijos en el dispositivo.
  * - Al abrir o volver a la app: muestra un aviso (una vez al día) con los pagos próximos y vencidos.
  * - Pone el número de pagos pendientes en el ícono de la app (iPhone/Android/computadora, si se admite).
- * Los avisos con la app cerrada requieren un servidor de notificaciones (Firebase), previsto en una etapa posterior.
+ * Con la app cerrada, los avisos los da el calendario del teléfono (ver Calendario.tsx): sin servidores.
  */
 import type { Ocurrencia } from '../../domain/recurring';
 import { todayIso } from '../../domain/dates';

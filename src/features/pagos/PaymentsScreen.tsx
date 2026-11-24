@@ -1,3 +1,4 @@
+import { RecordatoriosCalendario } from './Calendario';
 import { useMemo, useState } from 'react';
 import { useData } from '../../data/useData';
 import { save } from '../../data/store';
@@ -59,7 +60,7 @@ export function PaymentsScreen({ onPagar, device, onConfigurar, onAnotar }: { on
       </section>
       {notificationsSupported() && (
         <section className="card stack">
-          <h2>Avisos</h2>
+          <h2>Avisos al abrir la app</h2>
           {notif ? <p className="muted">Avisos activados en este dispositivo: al abrir la app te avisará de los pagos próximos y vencidos, y el ícono mostrará cuántos hay.</p> : (
             <>
               <p className="muted">Recibe un aviso de los pagos próximos y vencidos. En iPhone, primero instala la app (Compartir → Añadir a pantalla de inicio).</p>
@@ -68,6 +69,7 @@ export function PaymentsScreen({ onPagar, device, onConfigurar, onAnotar }: { on
           )}
         </section>
       )}
+      {activos > 0 && <RecordatoriosCalendario />}
     </main>
   );
 }

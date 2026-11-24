@@ -40,18 +40,29 @@ async function bajar(desde, hasta) {
   throw new Error(ultimo);
 }
 
+const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function main() {
   const hoy = new Date().toISOString().slice(0, 10);
-  let datos = [];
-  try {
-    for (let y = 2015; y <= +hoy.slice(0, 4); y++) datos.push(...(await bajar(`${y}-01-01`, `${y}-12-31`)));
-    console.log(`BCRP: ${datos.length} días (${datos[0]?.[0]} → ${datos.at(-1)?.[0]})`);
-  } catch (e) {
-    console.warn(`BCRP no respondió (${e.message}).`);
-    datos = [];
+  const porFecha = new Map();
+  const agregar = (xs) => { for (const [f, v] of xs) porFecha.set(f, v); };
+  // 1) Todo en una sola consulta (menos pedidos = menos bloqueos del antibots del BCRP).
+  try { agregar(await bajar('2015-01-01', hoy)); } catch (e) { console.warn(`Consulta única falló: ${e.message.slice(0, 120)}`); }
+  // 2) Si no alcanzó, año por año con pausas y reintentos; se guarda lo que llegue.
+  if (porFecha.size < 2000) {
+    for (let y = 2015; y <= +hoy.slice(0, 4); y++) {
+      for (let intento = 0; intento < 3; intento++) {
+        try { agregar(await bajar(`${y}-01-01`, `${y}-12-31`)); break; }
+        catch (e) { console.warn(`${y} intento ${intento + 1}: ${e.message.slice(0, 80)}`); await pausa(8000 * (intento + 1)); }
+      }
+      await pausa(2500);
+    }
   }
-  if (datos.length < 200 && PUBLICADO) {
-    try { const r = await fetch(PUBLICADO); if (r.ok) { const j = await r.json(); if (Array.isArray(j.datos) && j.datos.length > datos.length) { datos = j.datos; console.log(`Se reutiliza la serie publicada (${datos.length} días).`); } } } catch { /* nada */ }
+  let datos = [...porFecha.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  console.log(`BCRP: ${datos.length} días (${datos[0]?.[0] ?? '—'} → ${datos.at(-1)?.[0] ?? '—'})`);
+  // 3) Completar con la serie ya publicada (días que el BCRP no entregó esta vez).
+  if (PUBLICADO) {
+    try { const r = await fetch(PUBLICADO); if (r.ok) { const j = await r.json(); if (Array.isArray(j.datos)) { const m = new Map(j.datos); for (const [f, v] of datos) m.set(f, v); const antes = datos.length; datos = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])); console.log(`Serie publicada: +${datos.length - antes} días.`); } } } catch { /* nada */ }
   }
   await mkdir('public/tc', { recursive: true });
   await writeFile(OUT, JSON.stringify({ fuente: 'BCRP PD04640PD (venta, S/ por US$)', actualizado: hoy, datos }));

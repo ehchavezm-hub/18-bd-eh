@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { loadSettings } from '../../config/settings';
+import { loadSettings, saveSettings } from '../../config/settings';
 import { useData } from '../../data/useData';
 import { useStore, sync } from '../../data/store';
 import { CatalogEditor, secuenciaId, slugId, type CatalogSpec } from './CatalogEditor';
@@ -146,6 +146,17 @@ export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe, seccionI
             } catch { toast('No se pudo activar Face ID / huella.'); }
           }}>{st.webauthnCredentialId ? 'Volver a activar Face ID / huella' : 'Activar Face ID / huella'}</button>
         )}
+        <div className="stack">
+          <span className="muted">Pedir Face ID / PIN al volver a la app después de:</span>
+          <div className="fourier-n lock-min" role="radiogroup" aria-label="Minutos antes de bloquear">
+            {[1, 2, 5, 15].map((m) => {
+              const actual = st.lockAfterMinutes ?? 2;
+              return <button key={m} type="button" role="radio" aria-checked={actual === m} className={actual === m ? 'on' : ''}
+                onClick={() => { saveSettings({ lockAfterMinutes: m }); setBioVer((v) => v + 1); }}>{m} min</button>;
+            })}
+          </div>
+          <span className="muted small">Si el iPhone cierra la app por completo, siempre se pedirá al abrirla.</span>
+        </div>
         <p className="muted">Cuenta vinculada: {st.ownerEmail ?? '—'}</p>
         <button className="btn secondary" onClick={onChangeSheet}>Cambiar hoja de cálculo</button>
         <button className="btn secondary" onClick={onSignOut}>Cerrar sesión de Google</button>

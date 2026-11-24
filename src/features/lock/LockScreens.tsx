@@ -99,9 +99,9 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
     try { await activarBiometria(); onUnlock(); } catch { setError('No se pudo activar Face ID. Puedes intentarlo luego en Configuración.'); }
   }
 
-  // En iPhone/iPad, pedir Face ID sin que toques nada hace que iOS muestre primero la hoja
-  // "Iniciar sesión / Usar llave de acceso / Más opciones". Con un toque en el botón, Face ID aparece directo.
-  useEffect(() => { if (hasBio && !ES_IOS) void tryBio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Face ID se pide solo al abrir. En iPhone, iOS siempre muestra antes su hoja "Usar llave de acceso"
+  // (confirmación obligatoria de Apple para la web); el botón queda de respaldo si la cierras.
+  useEffect(() => { if (hasBio) void tryBio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [verPin, setVerPin] = useState(!hasBio);
   const mostrarPin = verPin || !!aviso;
 

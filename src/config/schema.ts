@@ -1,0 +1,54 @@
+/**
+ * Esquema de la base de datos (Google Sheets).
+ * Los nombres de pestañas NO deben cambiar: la app los busca por nombre.
+ * La clave (MOVIMIENTOS, CUENTAS…) es el nombre lógico que usa el código;
+ * el valor es el nombre real de la pestaña.
+ */
+export const SCHEMA_VERSION = 3;
+
+export const SHEETS = {
+  MOVIMIENTOS: '1.MOVIMIENTOS',
+  INSTITUCIONES: '2.INSTITUCIONES',
+  CUENTAS: '3.CUENTAS',
+  CATEGORIAS: '4.CATEGORIAS',
+  CENTROS: '5.CENTROS',
+  LUGARES: '6.LUGARES',
+  MONEDAS: '7.MONEDAS',
+  TIPO_CAMBIO: '8.TIPO_CAMBIO',
+  PAISES: '9.PAISES',
+  LISTAS: '10.LISTAS',
+  CONFIG: '11.CONFIG',
+  RECURRENTES: '12.RECURRENTES',
+  PRESUPUESTOS: '13.PRESUPUESTOS',
+  REGLAS_CATEGORIZACION: '14.REGLAS_CATEGORIZACION',
+  DIVISIONES: '15.DIVISIONES',
+  ADJUNTOS: '16.ADJUNTOS',
+  BITACORA: '17.BITACORA',
+  METAS: '18.METAS',
+  VIAJES: '19.VIAJES',
+  ACTIVOS: '20.ACTIVOS',
+  VALORACIONES: '21.VALORACIONES',
+  COMPRAS_CUOTAS: '22.COMPRAS_CUOTAS',
+  CONCILIACIONES: '23.CONCILIACIONES',
+  CIERRES_MES: '24.CIERRES_MES',
+  IMPORTACIONES: '25.IMPORTACIONES',
+  PLANTILLAS_IMPORTACION: '26.PLANTILLAS_IMPORTACION',
+  CONTRAPARTES: '27.CONTRAPARTES',
+} as const;
+
+export type TableName = keyof typeof SHEETS;
+
+/** Pestañas sin las cuales la versión 1 no puede funcionar. */
+export const REQUIRED_V1: TableName[] = [
+  'MOVIMIENTOS', 'INSTITUCIONES', 'CUENTAS', 'CATEGORIAS', 'CENTROS', 'LUGARES',
+  'MONEDAS', 'TIPO_CAMBIO', 'PAISES', 'LISTAS', 'CONFIG',
+  'RECURRENTES', 'PRESUPUESTOS', 'REGLAS_CATEGORIZACION', 'DIVISIONES', 'ADJUNTOS', 'BITACORA',
+];
+
+/** Encabezados mínimos que la app necesita en cada pestaña obligatoria. */
+export const REQUIRED_COLUMNS: Partial<Record<TableName, string[]>> = {
+  MOVIMIENTOS: ['MOVIMIENTO_ID', 'FECHA', 'TIPO', 'ESTADO', 'CUENTA_ID', 'MONTO', 'MONEDA', 'CATEGORIA_ID', 'ACTUALIZADO_EN', 'ELIMINADO'],
+  CUENTAS: ['CUENTA_ID', 'NOMBRE', 'INSTITUCION_ID', 'TIPO_CUENTA', 'MONEDA', 'ACTIVA'],
+  CATEGORIAS: ['CATEGORIA_ID', 'NOMBRE', 'TIPO', 'ACTIVA'],
+  CONFIG: ['CLAVE', 'VALOR'],
+};

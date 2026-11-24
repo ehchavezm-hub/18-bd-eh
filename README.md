@@ -4,5 +4,8 @@ App web instalable (PWA) para registrar ingresos, egresos y transferencias desde
 
 - **Alcance y fases:** [docs/ALCANCE.md](docs/ALCANCE.md)
 - **Arquitectura y decisiones técnicas:** [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)
+- **Configurar Google y publicar la app:** [docs/CONFIGURAR_GOOGLE.md](docs/CONFIGURAR_GOOGLE.md)
+
+
 
 > ⚠️ Este repositorio es público. **Nunca** se suben aquí datos financieros, archivos Excel/CSV, credenciales ni claves. El `.gitignore` los bloquea.

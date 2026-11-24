@@ -37,6 +37,10 @@ export function MovementForm({ editar, prefill, device, onDone }: { editar?: Mov
   const [etiquetas, setEtiquetas] = useState(base?.etiquetas ?? '');
   const [tcTxt, setTcTxt] = useState(base?.tipoCambio ? String(base.tipoCambio) : '');
   const [mas, setMas] = useState(!!base);
+  /** Moneda en que pagaste. Si no la cambias, es la de la cuenta. */
+  const [monedaSel, setMonedaSel] = useState<string | null>(base ? base.moneda : null);
+  const [otraMoneda, setOtraMoneda] = useState(false);
+  const [montoCuentaTxt, setMontoCuentaTxt] = useState('');
   const [tocado, setTocado] = useState<Set<string>>(new Set(base ? ['cuenta', 'categoria', 'centro', 'lugar', 'monto'] : prefill ? ['cuenta', 'categoria', 'centro', 'monto'] : []));
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -44,8 +48,11 @@ export function MovementForm({ editar, prefill, device, onDone }: { editar?: Mov
 
   const cuenta = d.cuentasById.get(cuentaId);
   const destino = d.cuentasById.get(destinoId);
-  const moneda = cuenta?.moneda ?? 'PEN';
-  const monto = parseMonto(montoTxt);
+  const moneda = cuenta?.moneda ?? 'PEN'; // moneda de la cuenta (en la que se guarda el monto)
+  const pagoEn = monedaSel ?? moneda;      // moneda en que pagaste
+  const conversion = tipo !== 'TRANSFERENCIA' && pagoEn !== moneda; // pagaste en otra moneda con esta cuenta
+  const montoPagado = parseMonto(montoTxt);
+  const monto = conversion ? parseMonto(montoCuentaTxt) : montoPagado; // lo que se movió en la cuenta
   const tcSugerido = moneda === 'PEN' ? 1 : tipoCambioPara(d.tiposCambio, moneda, fecha);
   const tc = moneda === 'PEN' ? 1 : parseMonto(tcTxt) ?? tcSugerido;
   const otraMonedaDestino = tipo === 'TRANSFERENCIA' && destino && destino.moneda !== moneda;
@@ -54,11 +61,18 @@ export function MovementForm({ editar, prefill, device, onDone }: { editar?: Mov
     const activas = d.cuentas.filter((c) => c.activa || c.id === cuentaId || c.id === destinoId);
     const inst = new Map(d.instituciones.map((i) => [i.id, i.nombre]));
     const top = cuentasFrecuentes(d.movs).filter((id) => activas.some((c) => c.id === id)).slice(0, 5);
+    if (monedaSel) {
+      const enMoneda = activas.filter((c) => c.moneda === monedaSel);
+      return [
+        ...enMoneda.map((c) => ({ value: c.id, label: c.nombre, group: `Cuentas en ${simbolo(monedaSel)}` })),
+        ...activas.filter((c) => c.moneda !== monedaSel).map((c) => ({ value: c.id, label: `${c.nombre} (${c.moneda})`, group: 'Otras monedas' })),
+      ];
+    }
     return [
       ...top.map((id) => ({ value: id, label: d.nombres.cuenta.get(id) ?? id, group: 'Más usadas' })),
       ...activas.filter((c) => !top.includes(c.id)).map((c) => ({ value: c.id, label: c.nombre, group: inst.get(c.institucionId) ?? c.institucionId })),
     ];
-  }, [d, cuentaId, destinoId]);
+  }, [d, cuentaId, destinoId, monedaSel]);
 
   const opcionesCategoria = useMemo<Opcion[]>(() => {
     const padres = new Map(d.categorias.filter((c) => !c.padreId).map((c) => [c.id, c.nombre]));
@@ -78,9 +92,23 @@ export function MovementForm({ editar, prefill, device, onDone }: { editar?: Mov
     if (s.monto && !tocado.has('monto') && !montoTxt) setMontoTxt(String(s.monto));
   }
 
+  function elegirMoneda(m: string) {
+    setMonedaSel(m);
+    // Si la cuenta actual no es de esa moneda y no la elegiste tú, propone tu cuenta más usada en esa moneda.
+    if (cuenta?.moneda !== m && !tocado.has('cuenta')) {
+      const frecuentes = cuentasFrecuentes(d.movs);
+      const enMoneda = d.cuentas.filter((c) => c.activa && c.moneda === m && c.tipo !== 'POR CONFIRMAR')
+        .sort((a, b) => (frecuentes.indexOf(a.id) + 1 || 999) - (frecuentes.indexOf(b.id) + 1 || 999));
+      if (enMoneda[0]) setCuentaId(enMoneda[0].id);
+    }
+  }
+  const monedasActivas = d.monedas.filter((m) => m.activo);
+
   async function guardar() {
     setError(null);
-    if (!monto || monto <= 0) return setError('Escribe un monto mayor que cero.');
+    if (!montoPagado || montoPagado <= 0) return setError('Escribe un monto mayor que cero.');
+    if (conversion && (!monto || monto <= 0)) return setError(`Escribe cuánto se cobró en la cuenta (${simbolo(moneda)}).`);
+    if (!monto) return setError('Escribe un monto mayor que cero.');
     if (!cuenta) return setError(tipo === 'INGRESO' ? 'Elige a qué cuenta entra el dinero.' : 'Elige de qué cuenta sale el dinero.');
     if (tipo === 'TRANSFERENCIA') {
       if (!destino) return setError('Elige la cuenta de destino.');
@@ -96,7 +124,7 @@ export function MovementForm({ editar, prefill, device, onDone }: { editar?: Mov
       CUENTA_DESTINO_ID: tipo === 'TRANSFERENCIA' ? destino!.id : '', MONTO_DESTINO: montoDestino ?? '', MONEDA_DESTINO: tipo === 'TRANSFERENCIA' ? destino!.moneda : '',
       TIPO_CAMBIO: tc ?? '', MONTO_PEN: tc ? Math.round(monto * tc * 100) / 100 : '',
       CATEGORIA_ID: tipo === 'TRANSFERENCIA' ? 'TRANSFERENCIA' : categoriaId, CENTRO_ID: centroId, LUGAR_ID: lugarId,
-      MEDIO_PAGO: medio || medioPorCuenta(cuenta.tipo), ETIQUETAS: safeText(etiquetas.trim()), NOTAS: safeText(notas.trim()),
+      MEDIO_PAGO: medio || medioPorCuenta(cuenta.tipo), ETIQUETAS: safeText(etiquetas.trim()), NOTAS: safeText([conversion ? `Monto original: ${simbolo(pagoEn)} ${montoPagado!.toFixed(2)}` : '', notas.trim()].filter(Boolean).join(' · ')),
       ACTUALIZADO_EN: nowStamp(),
     };
     setGuardando(true);
@@ -147,10 +175,26 @@ export function MovementForm({ editar, prefill, device, onDone }: { editar?: Mov
         { value: 'EGRESO', label: 'Gasto' }, { value: 'INGRESO', label: 'Ingreso' }, { value: 'TRANSFERENCIA', label: 'Transferencia' },
       ]} />
 
-      <Field label={`Monto (${simbolo(moneda)})`}>
+      <Field label={`Monto (${simbolo(pagoEn)})`}>
         <input className="amount" inputMode="decimal" placeholder="0.00" value={montoTxt} autoFocus={!base}
           onChange={(e) => { setMontoTxt(e.target.value); touch('monto'); }} />
       </Field>
+      {tipo !== 'TRANSFERENCIA' && (
+        <div className="currency">
+          <span className="field-label">Moneda</span>
+          <div className="chips">
+            {['PEN', 'USD'].map((m) => (
+              <button type="button" key={m} className={`chip${pagoEn === m && !otraMoneda ? ' on' : ''}`} onClick={() => { setOtraMoneda(false); elegirMoneda(m); }}>
+                {m === 'PEN' ? 'S/ Soles' : 'US$ Dólares'}
+              </button>
+            ))}
+            <button type="button" className={`chip${otraMoneda || !['PEN', 'USD'].includes(pagoEn) ? ' on' : ''}`} onClick={() => setOtraMoneda(true)}>Otra</button>
+          </div>
+          {(otraMoneda || !['PEN', 'USD'].includes(pagoEn)) && (
+            <Select value={pagoEn} onChange={(v) => v && elegirMoneda(v)} options={monedasActivas.map((m) => ({ value: m.id, label: `${m.id} · ${m.nombre}` }))} />
+          )}
+        </div>
+      )}
 
       <Field label="Descripción">
         <input value={descripcion} placeholder={tipo === 'EGRESO' ? 'Ej. Taxi, Wong, Menú' : tipo === 'INGRESO' ? 'Ej. Sueldo' : 'Ej. Pago tarjeta'}
@@ -190,6 +234,13 @@ export function MovementForm({ editar, prefill, device, onDone }: { editar?: Mov
         <Select value={centroId} onChange={(v) => { setCentroId(v); touch('centro'); }}
           options={d.centros.filter((c) => c.activo || c.id === centroId).map((c) => ({ value: c.id, label: c.nombre }))} />
       </Field>
+
+      {conversion && cuenta && (
+        <Field label={`¿Cuánto se cobró en ${cuenta.nombre}? (${simbolo(moneda)})`}
+          hint={`Pagaste en ${pagoEn} con una cuenta en ${moneda}. Escribe lo que se descontó de la cuenta (míralo en tu banco o voucher). El monto en ${pagoEn} quedará en las notas.`}>
+          <input inputMode="decimal" placeholder="0.00" value={montoCuentaTxt} onChange={(e) => setMontoCuentaTxt(e.target.value)} />
+        </Field>
+      )}
 
       {moneda !== 'PEN' && (
         <Field label={`Tipo de cambio (S/ por 1 ${moneda})`} hint={monto && tc ? `Equivale a ${dinero(monto * tc)}` : tcSugerido ? `Último conocido: ${tcSugerido}` : 'No hay tipo de cambio guardado: escríbelo.'}>

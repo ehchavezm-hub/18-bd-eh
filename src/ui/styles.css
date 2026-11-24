@@ -290,3 +290,5 @@ h1 { color: var(--primary); }
 @media (min-width: 900px) { body:has(.tabbar) .screen.dash { max-width: 1320px; margin-left: max(224px, calc(200px + (100% - 200px - 1320px) / 2)); } }
 .dash-grid > * { min-width: 0; }
 .chart { width: 100%; min-width: 0; }
+.currency { display: flex; flex-direction: column; gap: 6px; }
+.chip.on { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }

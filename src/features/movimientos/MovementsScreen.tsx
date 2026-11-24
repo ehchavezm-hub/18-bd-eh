@@ -5,6 +5,8 @@ import { dinero } from '../../domain/format';
 import { normalizar } from '../../domain/suggest';
 import type { Movimiento } from '../../domain/model';
 import { Empty, Select, Status } from '../../ui/kit';
+import { estiloGrupo, TRANSFERENCIA } from '../../ui/colors';
+import type { CSSProperties } from 'react';
 
 const PAGINA = 60;
 
@@ -69,18 +71,26 @@ export function MovementsScreen({ onAbrir, filtroInicial }: { onAbrir: (m: Movim
     </main>
   );
 
+  function Avatar({ m }: { m: Movimiento }) {
+    const cat = d.categoriasById.get(m.categoriaId ?? '');
+    const grupo = cat?.padreId ? d.categoriasById.get(cat.padreId) : cat;
+    const e = m.tipo === 'TRANSFERENCIA' ? TRANSFERENCIA : estiloGrupo(grupo?.id, grupo ?? undefined);
+    return <span className="avatar" style={{ '--c': e.color } as CSSProperties} aria-hidden="true">{e.icono}</span>;
+  }
+
   function MovRow({ m, onClick }: { m: Movimiento; onClick: () => void }) {
     const signo = m.tipo === 'INGRESO' || m.tipo === 'REEMBOLSO' ? '+' : m.tipo === 'TRANSFERENCIA' ? '' : '−';
     return (
       <li>
         <button type="button" className={`mov${m.estado === 'ANULADO' ? ' anulado' : ''}`} onClick={onClick}>
+          <Avatar m={m} />
           <span className="mov-main">
             <span className="mov-desc">{m.descripcion || '(sin descripción)'}</span>
             <span className="muted small">
               {m.tipo === 'TRANSFERENCIA' ? `${d.nombres.cuenta.get(m.cuentaId) ?? m.cuentaId} → ${d.nombres.cuenta.get(m.cuentaDestinoId ?? '') ?? m.cuentaDestinoId}` : `${d.nombres.categoria.get(m.categoriaId ?? '') ?? 'Sin categoría'} · ${d.nombres.cuenta.get(m.cuentaId) ?? m.cuentaId}`}
             </span>
           </span>
-          <span className={`mov-amount ${signo === '+' ? 'in' : ''}`}>{signo}{dinero(m.monto, m.moneda)}</span>
+          <span className={`mov-amount ${signo === '+' ? 'in' : m.tipo === 'TRANSFERENCIA' ? 'tr' : ''}`}>{signo}{dinero(m.monto, m.moneda)}</span>
           {m.estado !== 'PAGADO' && <Status kind="info">{m.estado.toLowerCase()}</Status>}
         </button>
       </li>

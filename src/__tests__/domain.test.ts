@@ -114,7 +114,7 @@ describe('reportes', () => {
     expect(acumuladoDiario(movs, '2026-11', 4)).toEqual([0, 100, 150, 150]);
   });
   it('reparte 50/30/20', () => {
-    const cats = new Map([['A', { id: 'A', nombre: 'A', tipo: 'EGRESO', padreId: 'G', clase: 'CONSUMO', tipo503020: 'NECESIDAD', activa: true, orden: 1 }]]);
+    const cats = new Map([['A', { id: 'A', nombre: 'A', tipo: 'EGRESO', padreId: 'G', clase: 'CONSUMO', tipo503020: 'NECESIDAD', activa: true, orden: 1, color: null, icono: null }]]);
     expect(regla503020(movs, '2026-11', cats)).toMatchObject({ NECESIDAD: 100, 'SIN CLASIFICAR': 50 });
   });
 });

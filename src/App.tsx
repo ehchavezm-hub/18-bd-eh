@@ -213,6 +213,7 @@ function Main(p: {
       </button>
 
       <nav className="tabbar">
+        <div className="brand"><img src="icons/icon.svg" alt="" width="28" height="28" /><span>Mis Finanzas</span></div>
         {TABS.map((t) => (
           <button key={t.id} className={t.desktopOnly ? 'desktop-only' : t.id === 'anotar' ? 'tab-add' : ''}
             aria-current={tab === t.id ? 'page' : undefined}

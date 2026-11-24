@@ -6,6 +6,8 @@ import { nowStamp, todayIso } from '../../domain/dates';
 import { dinero, parseMonto } from '../../domain/format';
 import { Meter } from '../../ui/charts';
 import { Field, Sheet, Status, toast } from '../../ui/kit';
+import { colorInstitucion } from '../../ui/colors';
+import type { CSSProperties } from 'react';
 
 /** D4 · Cuentas: ¿cuánto tengo y cuánto debo? */
 export function AccountsScreen({ onVerMovimientos }: { onVerMovimientos: (cuentaId: string) => void }) {
@@ -44,7 +46,7 @@ export function AccountsScreen({ onVerMovimientos }: { onVerMovimientos: (cuenta
               return (
                 <li key={c.id} className="acct">
                   <button type="button" className="acct-main" onClick={() => onVerMovimientos(c.id)}>
-                    <span>{c.nombre}{!c.activa && <span className="muted small"> (inactiva)</span>}</span>
+                    <span className="acct-title"><span className="avatar sm" style={{ '--c': colorInstitucion(c.institucionId) } as CSSProperties} aria-hidden="true">{(inst.get(c.institucionId) ?? c.institucionId).charAt(0)}</span>{c.nombre}{!c.activa && <span className="muted small"> (inactiva)</span>}</span>
                     <span className="muted small">{inst.get(c.institucionId) ?? c.institucionId} · {c.moneda}</span>
                   </button>
                   <div className="acct-side">

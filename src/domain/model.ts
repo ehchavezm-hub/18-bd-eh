@@ -101,11 +101,12 @@ export function toCuenta(r: Row): Cuenta {
   };
 }
 
-export interface Categoria { id: string; nombre: string; tipo: string; padreId: string | null; clase: string; tipo503020: string | null; activa: boolean; orden: number }
+export interface Categoria { id: string; nombre: string; tipo: string; padreId: string | null; clase: string; tipo503020: string | null; activa: boolean; orden: number; color: string | null; icono: string | null }
 export function toCategoria(r: Row): Categoria {
   return {
     id: str(r.CATEGORIA_ID), nombre: str(r.NOMBRE) || str(r.CATEGORIA_ID), tipo: str(r.TIPO), padreId: strOrNull(r.CATEGORIA_PADRE_ID),
     clase: str(r.CLASE), tipo503020: strOrNull(r.TIPO_50_30_20), activa: isYes(r.ACTIVA), orden: num(r.ORDEN) ?? 999,
+    color: /^#[0-9a-f]{6}$/i.test(str(r.COLOR)) ? str(r.COLOR) : null, icono: strOrNull(r.ICONO),
   };
 }
 

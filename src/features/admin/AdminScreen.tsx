@@ -12,11 +12,12 @@ const op = (xs: string[]): Opcion[] => xs.map((x) => ({ value: x, label: x.charA
 const s = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 
 /** Módulo Administrador: catálogos, datos y opciones de este dispositivo. */
-export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe }: { onSignOut: () => void; onChangeSheet: () => void; onExit: () => void; onWipe: () => void }) {
+export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe, seccionInicial }: { onSignOut: () => void; onChangeSheet: () => void; onExit: () => void; onWipe: () => void; seccionInicial?: string | null }) {
   const st = loadSettings();
   const d = useData();
   const store = useStore();
   const [abierto, setAbierto] = useState<CatalogSpec | null>(null);
+  const [cerroInicial, setCerroInicial] = useState(false);
 
   const specs = useMemo(() => {
     const inst = () => d.instituciones.filter((i) => i.activo).map((i) => ({ value: i.id, label: i.nombre }));
@@ -103,7 +104,8 @@ export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe }: { onSi
     return list;
   }, [d, store.tables.PAISES]);
 
-  if (abierto) return <CatalogEditor spec={abierto} onBack={() => setAbierto(null)} />;
+  const inicial = !abierto && seccionInicial && !cerroInicial ? specs.find((sp) => sp.table === seccionInicial) : null;
+  if (abierto || inicial) return <CatalogEditor spec={(abierto ?? inicial)!} onBack={() => { setAbierto(null); setCerroInicial(true); }} />;
 
   const sheetUrl = st.spreadsheetId ? `https://docs.google.com/spreadsheets/d/${st.spreadsheetId}/edit` : null;
   const ultimoTc = d.tiposCambio.filter((t) => t.moneda === 'USD').slice(-1)[0];

@@ -292,3 +292,5 @@ h1 { color: var(--primary); }
 .chart { width: 100%; min-width: 0; }
 .currency { display: flex; flex-direction: column; gap: 6px; }
 .chip.on { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
+.actions-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions-row .btn { flex: 1 1 200px; }

@@ -52,7 +52,8 @@ export function CatalogEditor({ spec, onBack }: { spec: CatalogSpec; onBack: () 
   const rows = tables[spec.table] ?? [];
   const idCol = idColumn(spec.table);
   const [buscar, setBuscar] = useState('');
-  const [inactivos, setInactivos] = useState(false);
+  // Si todo está inactivo (por ejemplo, los pagos fijos detectados del historial), mostrarlos para poder activarlos.
+  const [inactivos, setInactivos] = useState(() => rows.length > 0 && !rows.some((r) => isYes(r[spec.activoCol])));
   const [editando, setEditando] = useState<Row | 'nuevo' | null>(null);
 
   const visibles = useMemo(() => {

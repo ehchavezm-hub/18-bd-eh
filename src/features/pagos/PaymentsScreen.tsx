@@ -10,7 +10,7 @@ import type { Prefill } from '../anotar/MovementForm';
 import { notificationsSupported, enableNotifications, notificationsEnabled } from './notify';
 
 /** D5 · Pagos fijos: ¿qué viene y qué ya pagué? */
-export function PaymentsScreen({ onPagar, device }: { onPagar: (p: Prefill) => void; device: string }) {
+export function PaymentsScreen({ onPagar, device, onConfigurar, onAnotar }: { onPagar: (p: Prefill) => void; device: string; onConfigurar: () => void; onAnotar: () => void }) {
   const d = useData();
   const [vista, setVista] = useState<'semana' | 'mes'>('semana');
   const [notif, setNotif] = useState(notificationsEnabled());
@@ -25,6 +25,7 @@ export function PaymentsScreen({ onPagar, device }: { onPagar: (p: Prefill) => v
   const totalMes = useMemo(() => ocurrencias(d.recurrentes, d.movs, `${mes}-01`, `${mes}-31`, hoy)
     .reduce((acc, o) => { const k = o.recurrente.moneda; acc[k] = (acc[k] ?? 0) + (o.movimiento?.monto ?? o.recurrente.montoEstimado ?? 0); return acc; }, {} as Record<string, number>), [d, mes, hoy]);
   const activos = d.recurrentes.filter((r) => r.activo).length;
+  const inactivos = d.recurrentes.length - activos;
 
   async function omitir(o: Ocurrencia) {
     if (!confirm(`¿Marcar "${o.recurrente.descripcion}" como no pagado este periodo?`)) return;
@@ -39,14 +40,21 @@ export function PaymentsScreen({ onPagar, device }: { onPagar: (p: Prefill) => v
 
   return (
     <main className="screen">
-      <h1>Pagos fijos</h1>
+      <div className="row"><h1>Pagos fijos</h1></div>
+      <div className="actions-row">
+        <button className="btn" onClick={onConfigurar}>+ Agregar o activar pagos fijos</button>
+        <button className="btn secondary" onClick={onAnotar}>Anotar un gasto</button>
+      </div>
       <div className="card stack">
         <Segmented value={vista} onChange={setVista} options={[{ value: 'semana', label: 'Esta semana' }, { value: 'mes', label: `Todo ${monthLong(mes).split(' ')[0]}` }]} />
         <p className="muted small">{activos} pagos fijos activos · total del mes: {Object.entries(totalMes).map(([m, v]) => dinero(v, m)).join(' + ') || '—'}</p>
       </div>
       <section className="card">
         {activos === 0 ? (
-          <Empty>No tienes pagos fijos activos. Actívalos en Configuración → Pagos fijos (los que sigues pagando).</Empty>
+          <div className="stack">
+            <Empty>No tienes pagos fijos activos{inactivos > 0 ? `. Hay ${inactivos} pagos fijos de tu historial (luz, teléfono, internet, pensión…) esperando que actives los que sigues pagando` : ''}.</Empty>
+            <button className="btn secondary" onClick={onConfigurar}>{inactivos > 0 ? 'Revisar y activar mis pagos fijos' : 'Crear mi primer pago fijo'}</button>
+          </div>
         ) : items.length === 0 ? <Empty>Nada pendiente en este periodo.</Empty> : <PagosLista items={items} onPagar={onPagar} onOmitir={omitir} />}
       </section>
       {notificationsSupported() && (

@@ -2,27 +2,20 @@
  * Acceso con Google (Google Identity Services, flujo de token en el navegador).
  * El token vive solo en memoria de este teléfono y dura ~1 hora; se renueva solo.
  */
-const SCOPES = [
-  'https://www.googleapis.com/auth/spreadsheets',
-  'https://www.googleapis.com/auth/drive.file',
-  'openid',
-  'email',
-].join(' ');
+// Permiso mínimo: solo los archivos que el propietario elige en el selector de Drive.
+// La app NO puede ver, listar ni abrir ningún otro archivo de Google Drive.
+const SCOPES = ['https://www.googleapis.com/auth/drive.file', 'openid', 'email'].join(' ');
 
 interface TokenResponse { access_token?: string; expires_in?: number; error?: string }
 interface TokenClient { requestAccessToken(opts?: { prompt?: string }): void }
-declare global {
-  interface Window {
-    google?: { accounts: { oauth2: {
-      initTokenClient(cfg: { client_id: string; scope: string; callback: (r: TokenResponse) => void; error_callback?: (e: unknown) => void }): TokenClient;
-      revoke(token: string, done?: () => void): void;
-    } } };
-  }
-}
+interface GoogleOAuth { accounts: { oauth2: {
+  initTokenClient(cfg: { client_id: string; scope: string; callback: (r: TokenResponse) => void; error_callback?: (e: unknown) => void }): TokenClient;
+  revoke(token: string, done?: () => void): void;
+} } }
 
 let scriptPromise: Promise<void> | null = null;
 function loadScript(): Promise<void> {
-  if (window.google?.accounts?.oauth2) return Promise.resolve();
+  if ((window.google as GoogleOAuth | undefined)?.accounts?.oauth2) return Promise.resolve();
   scriptPromise ??= new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://accounts.google.com/gsi/client';
@@ -40,7 +33,7 @@ let pending: ((r: TokenResponse) => void) | null = null;
 
 async function ensureClient(clientId: string) {
   await loadScript();
-  client ??= window.google!.accounts.oauth2.initTokenClient({
+  client ??= (window.google as GoogleOAuth).accounts.oauth2.initTokenClient({
     client_id: clientId,
     scope: SCOPES,
     callback: (r) => pending?.(r),
@@ -78,7 +71,7 @@ export function hasToken() {
 }
 
 export async function signOut() {
-  if (token && window.google) window.google.accounts.oauth2.revoke(token.value);
+  if (token && window.google) (window.google as GoogleOAuth).accounts.oauth2.revoke(token.value);
   token = null;
 }
 

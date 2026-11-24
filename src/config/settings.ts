@@ -4,6 +4,8 @@ const KEY = 'finanzas.settings.v1';
 export interface Settings {
   spreadsheetId?: string;
   spreadsheetTitle?: string;
+  /** Cuenta de Google vinculada a este teléfono. Otra cuenta no puede entrar. */
+  ownerEmail?: string;
   lockMethod?: 'webauthn' | 'pin';
   webauthnCredentialId?: string;
   pinHash?: string;
@@ -39,3 +41,8 @@ export function clearSettings() {
 }
 
 export const GOOGLE_CLIENT_ID: string = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '';
+
+/** Clave de API restringida (solo Picker API y solo desde la dirección de la app). */
+export const GOOGLE_API_KEY: string = (import.meta.env.VITE_GOOGLE_API_KEY as string | undefined) ?? '';
+/** Número del proyecto de Google Cloud (lo exige el selector de Drive). */
+export const GOOGLE_APP_ID: string = (import.meta.env.VITE_GOOGLE_APP_ID as string | undefined) ?? '';

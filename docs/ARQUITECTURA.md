@@ -15,7 +15,7 @@
 ```
 
 - **Sin servidor propio.** Los datos viajan del teléfono a Google con el permiso del propietario.
-- **Permisos mínimos.** La app solo puede abrir la hoja de cálculo y la carpeta de fotos que el propietario elija (`drive.file`).
+- **Permisos mínimos.** La app solo puede abrir los archivos que el propietario elige en el selector de Google Drive (`drive.file`); no ve nada más. Ver [SEGURIDAD.md](SEGURIDAD.md).
 
 ## Capas
 

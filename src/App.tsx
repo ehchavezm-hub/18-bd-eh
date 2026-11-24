@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GOOGLE_CLIENT_ID, loadSettings, saveSettings } from './config/settings';
+import { clearSettings, GOOGLE_API_KEY, GOOGLE_APP_ID, GOOGLE_CLIENT_ID, loadSettings, saveSettings } from './config/settings';
 import { getEmail, getToken, signIn, signOut } from './auth/google';
 import { lockConfigured } from './auth/lock';
 import { SheetsAdapter } from './data/sheetsAdapter';
 import { checkSchema, type SchemaReport } from './data/schemaCheck';
 import { DataError } from './data/adapter';
+import { localDb } from './data/localDb';
 import { SetupScreen } from './features/setup/SetupScreen';
 import { LockSetupScreen, UnlockScreen } from './features/lock/LockScreens';
 import { HomeScreen, Placeholder } from './features/home/HomeScreen';
@@ -65,17 +66,16 @@ export function App() {
     }
   }, [db]);
 
-  useEffect(() => { if (signedIn && unlocked) void refresh(); }, [signedIn, unlocked, refresh]);
+  useEffect(() => { if (signedIn && unlocked && settings.spreadsheetId) void refresh(); }, [signedIn, unlocked, settings.spreadsheetId, refresh]);
 
-  if (!GOOGLE_CLIENT_ID) {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY || !GOOGLE_APP_ID) {
     return (
       <main className="screen center">
         <h1>Falta configurar el acceso de Google</h1>
-        <p className="muted">Esta copia de la app no tiene el ID de cliente OAuth (VITE_GOOGLE_CLIENT_ID).</p>
+        <p className="muted">Faltan las variables VITE_GOOGLE_CLIENT_ID, VITE_GOOGLE_API_KEY o VITE_GOOGLE_APP_ID. Ver docs/CONFIGURAR_GOOGLE.md.</p>
       </main>
     );
   }
-  if (!settings.spreadsheetId) return <SetupScreen onDone={reload} />;
   if (!lockConfigured()) return <LockSetupScreen onDone={() => { setUnlocked(true); reload(); }} />;
   if (!unlocked) return <UnlockScreen title="Mis Finanzas" onUnlock={() => setUnlocked(true)} />;
 
@@ -87,12 +87,25 @@ export function App() {
         {error && <div className="msg error">{error}</div>}
         <button className="btn" onClick={async () => {
           setError(null);
-          try { await signIn(GOOGLE_CLIENT_ID); setSignedIn(true); setEmail(await getEmail(GOOGLE_CLIENT_ID)); }
+          try {
+            await signIn(GOOGLE_CLIENT_ID);
+            const mail = await getEmail(GOOGLE_CLIENT_ID);
+            const owner = loadSettings().ownerEmail;
+            if (!mail) throw new Error('No se pudo confirmar tu cuenta de Google.');
+            if (owner && owner.toLowerCase() !== mail.toLowerCase()) {
+              await signOut();
+              throw new Error('Esta app está vinculada a otra cuenta de Google. Acceso denegado.');
+            }
+            if (!owner) saveSettings({ ownerEmail: mail });
+            setEmail(mail); setSignedIn(true);
+          }
           catch (e) { setError((e as Error).message); }
         }}>Entrar con Google</button>
       </main>
     );
   }
+
+  if (!settings.spreadsheetId) return <SetupScreen getAccessToken={() => getToken(GOOGLE_CLIENT_ID)} onDone={reload} />;
 
   if (adminGate === 'verify') {
     return <UnlockScreen title="Configuración" onUnlock={() => setAdminGate('open')} onCancel={() => setAdminGate('closed')} />;
@@ -102,6 +115,7 @@ export function App() {
       <AdminScreen
         onExit={() => setAdminGate('closed')}
         onSignOut={async () => { await signOut(); setSignedIn(false); setAdminGate('closed'); }}
+        onWipe={async () => { await signOut(); await localDb.delete(); clearSettings(); location.reload(); }}
         onChangeSheet={() => { saveSettings({ spreadsheetId: undefined, spreadsheetTitle: undefined }); setReport(null); setAdminGate('closed'); reload(); }}
       />
     );

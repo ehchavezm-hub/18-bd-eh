@@ -1,37 +1,33 @@
 import { useState } from 'react';
-import { parseSheetLink } from '../../lib/sheetId';
+import { pickSpreadsheet } from '../../auth/picker';
 import { saveSettings } from '../../config/settings';
 
-/** Primera vez: el usuario pega el enlace de su BD en Google Sheets. */
-export function SetupScreen({ onDone }: { onDone: () => void }) {
-  const [link, setLink] = useState('');
+/**
+ * Elegir la BD con el selector de Google Drive.
+ * Es la única forma de dar acceso: la app solo podrá abrir el archivo elegido aquí.
+ */
+export function SetupScreen({ getAccessToken, onDone }: { getAccessToken: () => Promise<string>; onDone: () => void }) {
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function submit() {
-    const parsed = parseSheetLink(link);
-    if (!parsed) return setError('No reconozco ese enlace. Copia el enlace de la hoja desde Google Drive.');
-    if (parsed.isOfficeFile)
-      return setError('Ese enlace es de un archivo Excel (.xlsx). En Drive ábrelo y usa Archivo → Guardar como Hojas de cálculo de Google; luego pega el enlace de la copia nueva.');
-    saveSettings({ spreadsheetId: parsed.id });
-    onDone();
+  async function choose() {
+    setError(null); setBusy(true);
+    try {
+      const picked = await pickSpreadsheet(await getAccessToken());
+      if (picked) { saveSettings({ spreadsheetId: picked.id, spreadsheetTitle: picked.name }); onDone(); }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <main className="screen center">
-      <h1>Conecta tu base de datos</h1>
-      <p className="muted">Pega el enlace de tu hoja de Google Sheets. Solo se guarda en este teléfono.</p>
-      <div className="card stack">
-        <input
-          inputMode="url"
-          autoCapitalize="off"
-          autoCorrect="off"
-          placeholder="https://docs.google.com/spreadsheets/d/…"
-          value={link}
-          onChange={(e) => { setLink(e.target.value); setError(null); }}
-        />
-        {error && <div className="msg error">{error}</div>}
-        <button className="btn" disabled={!link.trim()} onClick={submit}>Continuar</button>
-      </div>
+      <h1>Elige tu base de datos</h1>
+      <p className="muted">Se abrirá tu Google Drive. Elige tu hoja de finanzas (Google Sheets). La app solo podrá abrir ese archivo, ningún otro.</p>
+      {error && <div className="msg error">{error}</div>}
+      <button className="btn" disabled={busy} onClick={choose}>{busy ? 'Abriendo Drive…' : 'Elegir en Google Drive'}</button>
     </main>
   );
 }

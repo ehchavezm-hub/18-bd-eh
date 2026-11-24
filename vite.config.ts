@@ -32,6 +32,8 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: 'index.html',
+        // Incluye tc/usd.json (tipo de cambio histórico público) para que funcione sin internet.
+        globPatterns: ['**/*.{js,css,html,svg,png,json}'],
         // Nunca cachear llamadas a Google: los datos siempre van directo.
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [],

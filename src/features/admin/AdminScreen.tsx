@@ -9,6 +9,7 @@ import { Status, toast } from '../../ui/kit';
 import { activarBiometria } from '../lock/LockScreens';
 import { tieneEnvolturaBiometrica } from '../../auth/vault';
 import { dinero } from '../../domain/format';
+import { toIsoDate } from '../../domain/dates';
 
 const op = (xs: string[]): Opcion[] => xs.map((x) => ({ value: x, label: x.charAt(0) + x.slice(1).toLowerCase() }));
 const s = (v: unknown) => (v === null || v === undefined ? '' : String(v));
@@ -102,6 +103,47 @@ export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe, seccionI
           { key: 'CATEGORIA_ID', label: '…usar la categoría', type: 'select', options: cats, required: true }, { key: 'CENTRO_ID', label: '…y el centro (opcional)', type: 'select', options: centros },
           { key: 'PRIORIDAD', label: 'Prioridad (1 = primero)', type: 'number' }, { key: 'ACTIVA', label: 'Activa', type: 'yesno' }],
         resumen: (r) => ({ titulo: `"${s(r.PATRON)}" → ${d.nombres.categoria.get(s(r.CATEGORIA_ID)) ?? s(r.CATEGORIA_ID)}` }), nuevoId: secuenciaId('REG'), defaults: { ORIGEN: 'USUARIO', PRIORIDAD: 50 },
+      },
+      {
+        table: 'PRESUPUESTOS', titulo: 'Presupuestos', ayuda: 'Límite de gasto mensual por grupo o categoría. Deja el mes vacío para que valga todos los meses; pon un mes (AAAA-MM) para cambiarlo solo ese mes. Monto 0 = sin presupuesto.',
+        campos: [
+          { key: 'CATEGORIA_ID', label: 'Grupo o categoría', type: 'select', options: () => [...grupos().map((g) => ({ ...g, group: 'Grupos (incluye todas sus categorías)' })), ...cats()], required: true },
+          { key: 'MONTO', label: 'Límite mensual', type: 'number', required: true }, { key: 'MONEDA', label: 'Moneda', type: 'select', options: monedas },
+          { key: 'MES', label: 'Solo para el mes (opcional)', type: 'text', hint: 'Ej. 2026-12. Vacío = todos los meses.' },
+          { key: 'CENTRO_ID', label: 'Solo para el centro (opcional)', type: 'select', options: centros },
+        ],
+        resumen: (r) => ({ titulo: d.nombres.categoria.get(s(r.CATEGORIA_ID)) ?? s(r.CATEGORIA_ID), detalle: `${dinero(Number(r.MONTO) || 0, s(r.MONEDA) || 'PEN')} al mes · ${s(r.MES) ? `solo ${s(r.MES).slice(0, 7)}` : 'todos los meses'}${r.CENTRO_ID ? ` · ${d.nombres.centro.get(s(r.CENTRO_ID)) ?? s(r.CENTRO_ID)}` : ''}` }),
+        nuevoId: secuenciaId('PRE'), defaults: { MONEDA: 'PEN' },
+      },
+      {
+        table: 'METAS', titulo: 'Metas de ahorro', esActivo: (r) => !['LOGRADA', 'CANCELADA', 'PAUSADA'].includes(s(r.ESTADO).toUpperCase()),
+        ayuda: 'Vincula la cuenta donde guardas ese ahorro: el avance se calcula solo con su saldo.',
+        campos: [
+          { key: 'NOMBRE', label: 'Nombre', type: 'text', required: true, hint: 'Ej. Viaje a Grecia, Fondo de emergencia' },
+          { key: 'TIPO', label: 'Tipo', type: 'select', options: op(['AHORRO', 'FONDO DE EMERGENCIA', 'VIAJE', 'COMPRA', 'INVERSIÓN', 'PAGAR DEUDA', 'OTRO']) },
+          { key: 'MONTO_OBJETIVO', label: 'Monto objetivo', type: 'number', required: true }, { key: 'MONEDA', label: 'Moneda', type: 'select', options: monedas, required: true },
+          { key: 'FECHA_OBJETIVO', label: 'Fecha objetivo', type: 'date' }, { key: 'CUENTA_ID', label: 'Cuenta donde ahorras', type: 'select', options: cuentas },
+          { key: 'APORTE_MENSUAL', label: 'Aporte mensual planeado', type: 'number' }, { key: 'PRIORIDAD', label: 'Prioridad (1 = primero)', type: 'number' },
+          { key: 'ESTADO', label: 'Estado', type: 'select', options: op(['ACTIVA', 'PAUSADA', 'LOGRADA', 'CANCELADA']) }, { key: 'NOTAS', label: 'Notas', type: 'text' },
+        ],
+        resumen: (r) => ({ titulo: s(r.NOMBRE), detalle: `${dinero(Number(r.MONTO_OBJETIVO) || 0, s(r.MONEDA) || 'PEN')}${r.FECHA_OBJETIVO ? ` · para ${toIsoDate(r.FECHA_OBJETIVO) ?? ''}` : ''} · ${s(r.ESTADO).toLowerCase() || 'activa'}` }),
+        nuevoId: secuenciaId('META'), defaults: { MONEDA: 'PEN', ESTADO: 'ACTIVA', PRIORIDAD: 1, TIPO: 'AHORRO' },
+      },
+      {
+        table: 'ACTIVOS', titulo: 'Bienes (casa, autos…)', activoCol: 'ACTIVO',
+        ayuda: 'Suman a tu patrimonio neto con su valor estimado. Si un bien tiene una deuda (préstamo), vincúlala.',
+        campos: [
+          { key: 'NOMBRE', label: 'Nombre', type: 'text', required: true, hint: 'Ej. Departamento, Peugeot, Renault' },
+          { key: 'TIPO', label: 'Tipo', type: 'select', options: op(['INMUEBLE', 'VEHÍCULO', 'INVERSIÓN', 'OTRO']) },
+          { key: 'CENTRO_ID', label: 'Centro', type: 'select', options: centros },
+          { key: 'FECHA_ADQUISICION', label: 'Fecha de compra', type: 'date' }, { key: 'COSTO_ADQUISICION', label: 'Costo de compra', type: 'number' },
+          { key: 'MONEDA', label: 'Moneda', type: 'select', options: monedas, required: true },
+          { key: 'VALOR_ESTIMADO', label: 'Valor estimado hoy', type: 'number' }, { key: 'FECHA_VALORACION', label: 'Fecha del valor estimado', type: 'date' },
+          { key: 'CUENTA_DEUDA_ID', label: 'Deuda asociada (opcional)', type: 'select', options: cuentas },
+          { key: 'ACTIVO', label: '¿Lo tienes todavía?', type: 'yesno' }, { key: 'NOTAS', label: 'Notas', type: 'text' },
+        ],
+        resumen: (r) => ({ titulo: s(r.NOMBRE), detalle: `${s(r.TIPO).toLowerCase()}${r.VALOR_ESTIMADO ? ` · ${dinero(Number(r.VALOR_ESTIMADO), s(r.MONEDA) || 'PEN', false)}` : ''}` }),
+        nuevoId: secuenciaId('ACT'), defaults: { MONEDA: 'PEN', TIPO: 'INMUEBLE' },
       },
     ];
     return list;

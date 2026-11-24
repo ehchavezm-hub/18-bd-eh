@@ -26,8 +26,12 @@ export interface CatalogSpec {
   table: TableName;
   titulo: string;
   campos: Campo[];
-  /** Columna SÍ/NO que indica si está activo (no se borra nada). */
-  activoCol: string;
+  /** Columna SÍ/NO que indica si está activo (no se borra nada). Sin ella, todos se muestran como activos. */
+  activoCol?: string;
+  /** Alternativa a activoCol para estados que no son SÍ/NO (p. ej. metas). */
+  esActivo?: (r: Row) => boolean;
+  /** Texto de ayuda arriba de la lista. */
+  ayuda?: string;
   /** Texto principal y secundario de cada fila de la lista. */
   resumen: (r: Row) => { titulo: string; detalle?: string };
   /** Cómo generar el ID de un registro nuevo. */
@@ -53,15 +57,17 @@ export function CatalogEditor({ spec, onBack }: { spec: CatalogSpec; onBack: () 
   const idCol = idColumn(spec.table);
   const [buscar, setBuscar] = useState('');
   // Si todo está inactivo (por ejemplo, los pagos fijos detectados del historial), mostrarlos para poder activarlos.
-  const [inactivos, setInactivos] = useState(() => rows.length > 0 && !rows.some((r) => isYes(r[spec.activoCol])));
+  const activo = (r: Row) => (spec.esActivo ? spec.esActivo(r) : spec.activoCol ? isYes(r[spec.activoCol]) : true);
+  const conInactivos = !!(spec.esActivo || spec.activoCol);
+  const [inactivos, setInactivos] = useState(() => rows.length > 0 && !rows.some(activo));
   const [editando, setEditando] = useState<Row | 'nuevo' | null>(null);
 
   const visibles = useMemo(() => {
     const t = normalizar(buscar);
     return rows
-      .filter((r) => inactivos || isYes(r[spec.activoCol]))
+      .filter((r) => inactivos || activo(r))
       .filter((r) => !t || normalizar(`${r[idCol]} ${spec.resumen(r).titulo} ${spec.resumen(r).detalle ?? ''}`).includes(t));
-  }, [rows, buscar, inactivos, spec, idCol]);
+  }, [rows, buscar, inactivos, spec, idCol]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <main className="screen">
@@ -69,8 +75,9 @@ export function CatalogEditor({ spec, onBack }: { spec: CatalogSpec; onBack: () 
       <div className="row"><h1>{spec.titulo}</h1><button className="btn small" onClick={() => setEditando('nuevo')}>+ Agregar</button></div>
       <div className="card stack">
         <input type="search" placeholder="Buscar" value={buscar} onChange={(e) => setBuscar(e.target.value)} />
-        <label className="check"><input type="checkbox" checked={inactivos} onChange={(e) => setInactivos(e.target.checked)} /> Mostrar inactivos</label>
+        {conInactivos && <label className="check"><input type="checkbox" checked={inactivos} onChange={(e) => setInactivos(e.target.checked)} /> Mostrar inactivos</label>}
       </div>
+      {spec.ayuda && <p className="muted small">{spec.ayuda}</p>}
       <section className="card">
         <ul className="plain">
           {visibles.map((r) => {
@@ -79,7 +86,7 @@ export function CatalogEditor({ spec, onBack }: { spec: CatalogSpec; onBack: () 
               <li key={String(r[idCol])}>
                 <button type="button" className="mov" onClick={() => setEditando(r)}>
                   <span className="mov-main"><span className="mov-desc">{s.titulo}</span>{s.detalle && <span className="muted small">{s.detalle}</span>}</span>
-                  {!isYes(r[spec.activoCol]) && <Status kind="info">Inactivo</Status>}
+                  {!activo(r) && <Status kind="info">Inactivo</Status>}
                 </button>
               </li>
             );
@@ -99,7 +106,7 @@ function EditForm({ spec, row, existentes, onClose }: { spec: CatalogSpec; row: 
     const v = row ? row[c.key] : spec.defaults?.[c.key];
     inicial[c.key] = v === null || v === undefined ? '' : c.type === 'date' ? toIsoDate(v) ?? '' : c.type === 'yesno' ? (isYes(v) ? 'SÍ' : 'NO') : String(v);
   }
-  if (!row) inicial[spec.activoCol] = 'SÍ';
+  if (!row && spec.activoCol) inicial[spec.activoCol] = 'SÍ';
   const [vals, setVals] = useState(inicial);
   const [err, setErr] = useState<string | null>(null);
   const setV = (k: string, v: string) => setVals((s) => ({ ...s, [k]: v }));

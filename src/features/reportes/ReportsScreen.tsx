@@ -12,6 +12,7 @@ import { BarList, ChartCard, ColumnChart, Heatmap, MonthBars, SegmentedBar, Spar
 import { Beeswarm, BumpChart, CalendarHeatmap, Dumbbell, Sankey, Treemap, Waterfall } from '../../ui/advanced';
 import { addMonths } from '../../domain/dates';
 import { Segmented, Select, Status } from '../../ui/kit';
+import { PlanView } from '../plan/PlanView';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const CLASES: { k: string; label: string; className: string }[] = [
@@ -21,10 +22,10 @@ const CLASES: { k: string; label: string; className: string }[] = [
 const anio = (f: string) => f.slice(0, 4);
 
 /** Dashboards: gasto del mes (D2), 12 meses (D3) y todo el historial por año. */
-export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { mes?: string; categoriaId?: string; centroId?: string }) => void }) {
+export function ReportsScreen({ onVerMovimientos, onConfigurar, vistaInicial }: { onVerMovimientos: (f: { mes?: string; categoriaId?: string; centroId?: string }) => void; onConfigurar: (seccion: string) => void; vistaInicial?: 'plan' }) {
   const d = useData();
   const hoy = todayIso();
-  const [vista, setVista] = useState<'mes' | 'tendencias' | 'anios'>('mes');
+  const [vista, setVista] = useState<'plan' | 'mes' | 'tendencias' | 'anios'>(vistaInicial ?? 'mes');
   // Arranca en el mes actual si tiene datos; si no, en el último mes con datos.
   // Meses con al menos 5 gastos: así un mes recién empezado (o con un solo gasto de prueba) no deja el dashboard vacío.
   const mesesConDatos = useMemo(() => {
@@ -115,16 +116,18 @@ export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { me
     <main className="screen dash">
       <h1>Dashboards</h1>
       <div className="card stack">
-        <Segmented value={vista} onChange={setVista} options={[{ value: 'mes', label: 'Mes' }, { value: 'tendencias', label: '12 meses' }, { value: 'anios', label: 'Por año' }]} />
-        <div className="filters">
+        <Segmented value={vista} onChange={setVista} options={[{ value: 'plan', label: 'Plan' }, { value: 'mes', label: 'Mes' }, { value: 'tendencias', label: '12 meses' }, { value: 'anios', label: 'Por año' }]} />
+        {vista !== 'plan' && <div className="filters">
           {vista === 'mes' && <Select value={mes} onChange={(v) => setMes(v || null)} placeholder={monthLong(base)} options={meses.map((m) => ({ value: m, label: monthLong(m) }))} />}
           {vista === 'anios' && <Select value={anioActivo} onChange={(v) => setAnioSel(v || null)} placeholder={anioActivo} options={[...A.anios].reverse().map((y) => ({ value: y, label: y }))} />}
           <Select value={centroId} onChange={setCentroId} placeholder="Todos los centros" options={d.centros.map((c) => ({ value: c.id, label: c.nombre }))} />
-        </div>
+        </div>}
       </div>
       {base !== monthKey(hoy) && vista === 'mes' && !mesElegido && (
         <Status kind="info">{monthLong(monthKey(hoy))} aún tiene pocos movimientos. Se muestra el último mes con datos: {monthLong(base)}. Puedes elegir otro mes arriba.</Status>
       )}
+
+      {vista === 'plan' && <PlanView onConfigurar={onConfigurar} onVerMovimientos={onVerMovimientos} />}
 
       {vista === 'mes' && (
         <>

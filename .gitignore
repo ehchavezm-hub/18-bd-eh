@@ -22,6 +22,9 @@ client_secret*.json
 token*.json
 .clasprc.json
 
+# --- Generado al publicar (tipo de cambio público del BCRP) ---
+public/tc/
+
 # --- Dependencias y compilados ---
 node_modules/
 dist/

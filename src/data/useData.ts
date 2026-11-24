@@ -5,6 +5,10 @@ import {
   type Categoria, type Cuenta, type Movimiento, type Recurrente, type Regla, type Simple, type TipoCambio,
 } from '../domain/model';
 import type { Row } from '../lib/rows';
+import { setTcRespaldo } from '../domain/model';
+import { toActivo, toMeta, toPresupuesto, type Activo, type Meta, type Presupuesto } from '../domain/plan';
+import { valorEn } from '../domain/tc';
+import { serieUsd } from './tcHistorico';
 
 export interface Data {
   movs: Movimiento[];
@@ -20,6 +24,9 @@ export interface Data {
   reglas: Regla[];
   tiposCambio: TipoCambio[];
   listas: Record<string, string[]>;
+  presupuestos: Presupuesto[];
+  metas: Meta[];
+  activos: Activo[];
   cobertura: Map<string, string>;
   nombres: { categoria: Map<string, string>; centro: Map<string, string>; cuenta: Map<string, string>; lugar: Map<string, string> };
 }
@@ -48,6 +55,8 @@ export function useData(): Data {
       const k = typeof r.MES === 'number' ? new Date(Date.UTC(1899, 11, 30) + r.MES * 86400000).toISOString().slice(0, 7) : String(r.MES ?? '').slice(0, 7);
       if (k) cobertura.set(k, String(r.COBERTURA_REGISTRO ?? ''));
     }
+    const tiposCambio = t('TIPO_CAMBIO').map(toTipoCambio).filter((x): x is TipoCambio => !!x).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    setTcRespaldo((moneda, fecha) => tipoCambioPara(tiposCambio, moneda, fecha));
     return {
       movs,
       cuentas,
@@ -60,7 +69,10 @@ export function useData(): Data {
       monedas,
       recurrentes: t('RECURRENTES').map(toRecurrente).filter((r) => r.id),
       reglas: t('REGLAS_CATEGORIZACION').map(toRegla).filter((r) => r.patron),
-      tiposCambio: t('TIPO_CAMBIO').map(toTipoCambio).filter((x): x is TipoCambio => !!x).sort((a, b) => a.fecha.localeCompare(b.fecha)),
+      tiposCambio,
+      presupuestos: t('PRESUPUESTOS').map(toPresupuesto).filter((x): x is Presupuesto => !!x),
+      metas: t('METAS').map(toMeta).filter((x): x is Meta => !!x),
+      activos: t('ACTIVOS').map(toActivo).filter((x): x is Activo => !!x),
       listas,
       cobertura,
       nombres: {
@@ -73,11 +85,19 @@ export function useData(): Data {
   }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
-/** Último tipo de cambio conocido para una moneda en (o antes de) una fecha. */
+/**
+ * Tipo de cambio para una moneda en una fecha:
+ * 1) el que tú registraste en 8.TIPO_CAMBIO (ese día o hasta 10 días antes);
+ * 2) el histórico del BCRP publicado con la app (solo USD);
+ * 3) el último que registraste.
+ */
 export function tipoCambioPara(tcs: TipoCambio[], moneda: string, fecha: string): number | null {
+  if (moneda === 'PEN') return 1;
   let best: TipoCambio | null = null;
   for (const t of tcs) if (t.moneda === moneda && t.fecha <= fecha) best = t;
-  return best?.venta ?? null;
+  if (best && (Date.parse(fecha) - Date.parse(best.fecha)) / 86_400_000 <= 10) return best.venta;
+  const bcrp = moneda === 'USD' ? valorEn(serieUsd(), fecha) : null;
+  return bcrp ?? best?.venta ?? null;
 }
 
 export function deviceName(): string {

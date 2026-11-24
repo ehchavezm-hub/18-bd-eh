@@ -77,12 +77,28 @@ export function toMovimiento(r: Row): Movimiento | null {
 /** Cuenta para el cálculo: solo movimientos pagados y no eliminados. */
 export const cuenta = (m: Movimiento) => m.estado === 'PAGADO' && !m.eliminado;
 
-/** Monto en soles: usa MONTO_PEN; si falta y la moneda es PEN, el monto. Si no hay tipo de cambio, null. */
-export function enSoles(m: Pick<Movimiento, 'monto' | 'moneda' | 'montoPen' | 'tipoCambio'>): number | null {
+/**
+ * Tipo de cambio de respaldo para movimientos sin TC propio: primero la pestaña 8.TIPO_CAMBIO,
+ * luego la serie histórica del BCRP publicada con la app. Se configura una vez al cargar los datos.
+ */
+type BuscaTc = (moneda: string, fecha: string) => number | null;
+let tcRespaldo: BuscaTc = () => null;
+export const setTcRespaldo = (f: BuscaTc) => { tcRespaldo = f; };
+
+/** Monto en soles: MONTO_PEN; si es PEN, el monto; si trae TC, monto × TC; si no, el TC histórico del día. Sin TC: null. */
+export function enSoles(m: Pick<Movimiento, 'monto' | 'moneda' | 'montoPen' | 'tipoCambio'> & { fecha?: string }): number | null {
   if (m.montoPen !== null) return m.montoPen;
   if (m.moneda === 'PEN') return m.monto;
   if (m.tipoCambio) return m.monto * m.tipoCambio;
-  return null;
+  const tc = m.fecha ? tcRespaldo(m.moneda, m.fecha) : null;
+  return tc ? Math.round(m.monto * tc * 100) / 100 : null;
+}
+
+/** Convierte un monto de una moneda a soles en una fecha (para saldos y patrimonio). */
+export function aSoles(monto: number, moneda: string, fecha: string): number | null {
+  if (moneda === 'PEN') return monto;
+  const tc = tcRespaldo(moneda, fecha);
+  return tc ? monto * tc : null;
 }
 
 export interface Cuenta {

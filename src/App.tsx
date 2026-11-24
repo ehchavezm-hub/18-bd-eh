@@ -8,7 +8,8 @@ import { SheetsAdapter } from './data/sheetsAdapter';
 import { checkSchema } from './data/schemaCheck';
 import { DataError } from './data/adapter';
 import { localDb } from './data/localDb';
-import { getState, initStore, resetStore, sync, useStore } from './data/store';
+import { getState, initStore, refrescar, resetStore, sync, useStore } from './data/store';
+import { cargarTcHistorico } from './data/tcHistorico';
 import { deviceName, useData } from './data/useData';
 import { porAtender } from './domain/recurring';
 import { todayIso } from './domain/dates';
@@ -22,7 +23,8 @@ import { MovementsScreen } from './features/movimientos/MovementsScreen';
 import { AccountsScreen } from './features/cuentas/AccountsScreen';
 import { PaymentsScreen } from './features/pagos/PaymentsScreen';
 import { ReportsScreen } from './features/reportes/ReportsScreen';
-import { updateBadgeAndNotify } from './features/pagos/notify';
+import { avisarPresupuestos, updateBadgeAndNotify } from './features/pagos/notify';
+import { avancePresupuestos } from './domain/plan';
 import { Sheet, toast, ToastHost } from './ui/kit';
 
 type Tab = 'inicio' | 'movimientos' | 'anotar' | 'cuentas' | 'reportes' | 'pagos';
@@ -153,6 +155,7 @@ function Main(p: {
   const store = useStore();
   const data = useData();
   const [tab, setTab] = useState<Tab>('inicio');
+  const [vistaDash, setVistaDash] = useState<'normal' | 'plan'>('normal');
   const [form, setForm] = useState<{ editar?: Movimiento; prefill?: Prefill } | null>(null);
   const [filtro, setFiltro] = useState<{ key: number; mes?: string; categoriaId?: string; centroId?: string; cuentaId?: string }>({ key: 0 });
   const [schemaMsg, setSchemaMsg] = useState<string | null>(null);
@@ -163,6 +166,7 @@ function Main(p: {
   useEffect(() => {
     let vivo = true;
     (async () => {
+      void cargarTcHistorico().then(refrescar);
       await initStore(db, DEVICE);
       const st = loadSettings();
       if (st.schemaOk !== p.spreadsheetId && navigator.onLine) {
@@ -216,7 +220,11 @@ function Main(p: {
   useEffect(() => {
     if (!store.ready) return;
     void updateBadgeAndNotify(porAtender(data.recurrentes, data.movs, todayIso()));
-  }, [store.ready, store.lastSync]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Presupuestos: aviso al 80 % y al 100 % (también como mensaje dentro de la app).
+    const mesHoy = todayIso().slice(0, 7);
+    void avisarPresupuestos(avancePresupuestos(data.presupuestos, data.movs, data.categoriasById, mesHoy, todayIso())
+      .map((a) => ({ id: a.presupuesto.id, nombre: a.nombre, pct: a.pct, estado: a.estado })), mesHoy).then((t) => { if (t.length) toast(t.join(' · ')); });
+  }, [store.ready, data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const abrirMovs = useCallback((f: { mes?: string; categoriaId?: string; centroId?: string; cuentaId?: string }) => {
     setFiltro({ key: Date.now(), ...f });
@@ -250,10 +258,10 @@ function Main(p: {
       {(schemaMsg || versionMal) && (
         <div className="screen banner"><div className="msg error">{schemaMsg ?? `La hoja tiene la versión de esquema ${version}; esta app espera la ${SCHEMA_VERSION}. No modifiques la hoja hasta actualizar la app.`}</div></div>
       )}
-      {tab === 'inicio' && <HomeScreen onPagar={(pf) => setForm({ prefill: pf })} onVerPagos={() => setTab('pagos')} onVerCuentas={() => setTab('cuentas')} onVerDashboards={() => setTab('reportes')} />}
+      {tab === 'inicio' && <HomeScreen onPagar={(pf) => setForm({ prefill: pf })} onVerPagos={() => setTab('pagos')} onVerCuentas={() => setTab('cuentas')} onVerDashboards={() => setTab('reportes')} onVerPlan={() => { setVistaDash('plan'); setTab('reportes'); }} />}
       {tab === 'movimientos' && <MovementsScreen key={filtro.key} filtroInicial={filtro} onAbrir={(m) => setForm({ editar: m })} />}
       {tab === 'cuentas' && <AccountsScreen onVerMovimientos={(cuentaId) => abrirMovs({ cuentaId })} />}
-      {tab === 'reportes' && <ReportsScreen onVerMovimientos={abrirMovs} />}
+      {tab === 'reportes' && <ReportsScreen key={vistaDash} vistaInicial={vistaDash === 'plan' ? 'plan' : undefined} onVerMovimientos={abrirMovs} onConfigurar={(sec) => p.onOpenAdmin(sec)} />}
       {tab === 'pagos' && <PaymentsScreen onPagar={(pf) => setForm({ prefill: pf })} device={DEVICE} onConfigurar={() => p.onOpenAdmin('RECURRENTES')} onAnotar={() => setForm({})} />}
 
       <button className="btn link gear" aria-label="Configuración" onClick={() => p.onOpenAdmin()}>
@@ -268,7 +276,7 @@ function Main(p: {
         {TABS.map((t) => (
           <button key={t.id} className={t.desktopOnly ? 'desktop-only' : t.id === 'anotar' ? 'tab-add' : ''}
             aria-current={tab === t.id ? 'page' : undefined}
-            onClick={() => (t.id === 'anotar' ? setForm({}) : setTab(t.id))}>
+            onClick={() => { if (t.id === 'anotar') setForm({}); else { if (t.id === 'reportes') setVistaDash('normal'); setTab(t.id); } }}>
             <Icon d={ICON[t.id]} />{t.label}
           </button>
         ))}

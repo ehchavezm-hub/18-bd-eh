@@ -37,3 +37,27 @@ export async function updateBadgeAndNotify(pendientes: Ocurrencia[]) {
     write({ last: hoy });
   } catch { /* el navegador no permitió el aviso */ }
 }
+
+/**
+ * Aviso de presupuestos: al llegar al 80 % y al pasar el 100 %, una sola vez por presupuesto, mes y nivel.
+ * Sin montos (puede verse en la pantalla bloqueada): solo el nombre de la categoría y el porcentaje.
+ * Funciona al abrir la app: el gasto se registra en la app, así que el aviso llega justo después de anotar.
+ */
+const KEY_PRE = 'finanzas.notify.presupuestos.v1';
+export async function avisarPresupuestos(items: { id: string; nombre: string; pct: number; estado: 'ok' | 'alerta' | 'excedido' }[], mes: string): Promise<string[]> {
+  let vistos: Record<string, true> = {};
+  try { vistos = JSON.parse(localStorage.getItem(KEY_PRE) ?? '{}'); } catch { /* nada */ }
+  const nuevos = items.filter((a) => a.estado !== 'ok' && !vistos[`${mes}|${a.id}|${a.estado}`]);
+  if (nuevos.length === 0) return [];
+  const textos = nuevos.map((a) => (a.estado === 'excedido' ? `${a.nombre}: pasaste tu presupuesto (${Math.round(a.pct * 100)} %)` : `${a.nombre}: llegaste al ${Math.round(a.pct * 100)} % de tu presupuesto`));
+  for (const a of nuevos) vistos[`${mes}|${a.id}|${a.estado}`] = true;
+  // Se guardan solo las claves del mes actual (no crece sin fin).
+  try { localStorage.setItem(KEY_PRE, JSON.stringify(Object.fromEntries(Object.entries(vistos).filter(([k]) => k.startsWith(mes))))); } catch { /* nada */ }
+  if (notificationsEnabled()) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('Mis Finanzas · Presupuesto', { body: textos.join('\n'), tag: `presupuesto-${mes}`, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png' });
+    } catch { /* no permitido */ }
+  }
+  return textos;
+}

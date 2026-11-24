@@ -192,3 +192,29 @@ input[type='search'] { padding-left: 34px; background-image: url("data:image/svg
 .lock-min { background: var(--fill, rgba(120,120,128,0.12)); align-self: flex-start; }
 .lock-min button { color: inherit; }
 .lock-min button.on { background: #007aff; color: #fff; }
+
+/* ---------- Plan: presupuestos, cierre, patrimonio, metas ---------- */
+.pos { color: var(--ok); }
+.budgets { gap: 14px; }
+.budget-btn { all: unset; display: block; cursor: pointer; border-radius: 10px; }
+.budget-btn:focus-visible { outline: 2px solid #007aff; outline-offset: 4px; }
+.budget { display: flex; flex-direction: column; gap: 6px; }
+.budget-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.budget-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.budget-pct { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); }
+.budget-pct.alerta { color: #c77700; } .budget-pct.excedido { color: var(--error); } .budget-pct.ok { color: var(--ok); }
+.budget-bar { position: relative; height: 10px; border-radius: 999px; background: var(--fill, rgba(120,120,128,0.16)); overflow: visible; }
+.budget-bar > span { display: block; height: 100%; border-radius: 999px; background: #34c759; transition: width 400ms cubic-bezier(0.32,0.72,0,1); }
+.budget-bar.alerta > span { background: #ff9f0a; } .budget-bar.excedido > span { background: #ff3b30; }
+.budget-bar.meta-bar > span { background: #007aff; }
+.budget-proj { position: absolute; top: -3px; width: 2px; height: 16px; background: currentColor; opacity: 0.55; border-radius: 1px; transform: translateX(-1px); }
+.budget-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.sugeridos li, .patrimonio li, .cierre .sub li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 0.5px solid var(--border); }
+.sugeridos li:last-child, .patrimonio li:last-child, .cierre .sub li:last-child { border-bottom: 0; }
+.cierre > li { padding: 8px 0; }
+.cierre .sub { margin-top: 4px; }
+.link-row { all: unset; display: flex; justify-content: space-between; gap: 12px; width: 100%; cursor: pointer; }
+.cierre-mes { min-width: 150px; }
+.meta { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+.meta:last-child { border-bottom: 0; }
+@media (prefers-reduced-motion: reduce) { .budget-bar > span { transition: none; } }

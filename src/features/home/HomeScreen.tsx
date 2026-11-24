@@ -5,6 +5,8 @@ import { useStore } from '../../data/store';
 import { calcularSaldos, totales } from '../../domain/balances';
 import { acumuladoDiario, gastoPorPeriodo, resumenMes, ultimoMesConDatos } from '../../domain/reports';
 import { FourierCard } from '../../ui/FourierCard';
+import { avancePresupuestos } from '../../domain/plan';
+import { BarraPresupuesto } from '../plan/PlanView';
 import { porAtender } from '../../domain/recurring';
 import { addMonths, dayLabel, daysInMonth, monthKey, monthLong, todayIso } from '../../domain/dates';
 import { dinero } from '../../domain/format';
@@ -14,7 +16,7 @@ import type { Prefill } from '../anotar/MovementForm';
 import type { Ocurrencia } from '../../domain/recurring';
 
 /** D1 · Inicio: ¿cómo voy hoy? */
-export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards }: { onPagar: (p: Prefill) => void; onVerPagos: () => void; onVerCuentas: () => void; onVerDashboards: () => void }) {
+export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards, onVerPlan }: { onPagar: (p: Prefill) => void; onVerPagos: () => void; onVerCuentas: () => void; onVerDashboards: () => void; onVerPlan: () => void }) {
   const d = useData();
   const hoy = todayIso();
   const mes = monthKey(hoy);
@@ -34,7 +36,8 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards 
     for (const m of d.movs) if (m.tipo === 'EGRESO' && m.estado === 'PAGADO' && !m.eliminado) porMes.set(m.fecha.slice(0, 7), (porMes.get(m.fecha.slice(0, 7)) ?? 0) + 1);
     const conDatos = [...porMes.entries()].filter(([, c]) => c >= 5).map(([k]) => k).sort().slice(-24);
     const forma = gastoPorPeriodo(d.movs, conDatos);
-    return { t, sinSaldoInicial, actual, acumAct, acumAnt, antHastaHoy, pagos: porAtender(d.recurrentes, d.movs, hoy), ultimo: ultimoMesConDatos(d.movs), forma, mesesForma: conDatos };
+    const presupuesto = avancePresupuestos(d.presupuestos, d.movs, d.categoriasById, mes, hoy);
+    return { presupuesto, t, sinSaldoInicial, actual, acumAct, acumAnt, antHastaHoy, pagos: porAtender(d.recurrentes, d.movs, hoy), ultimo: ultimoMesConDatos(d.movs), forma, mesesForma: conDatos };
   }, [d, mes, anterior, dia, hoy]);
 
   const delta = v.antHastaHoy > 0 ? (v.actual.egresos - v.antHastaHoy) / v.antHastaHoy : null;
@@ -91,6 +94,21 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards 
       >
         <LineCompare actual={v.acumAct} anterior={v.acumAnt} dias={Math.max(daysInMonth(mes), v.acumAnt.length)} format={(x) => dinero(x)} />
       </ChartCard>
+
+      <section className="card stack">
+        <div className="row"><h2>Presupuesto del mes</h2><button className="btn link small" onClick={onVerPlan}>Ver plan</button></div>
+        {v.presupuesto.length === 0 ? (
+          <><p className="muted">Define cuánto quieres gastar al mes por categoría y te aviso al llegar al 80 %.</p>
+            <button className="btn secondary" onClick={onVerPlan}>Crear presupuestos</button></>
+        ) : (
+          <>
+            {v.presupuesto.filter((a) => a.estado !== 'ok').length === 0
+              ? <Status kind="ok">Todo dentro del presupuesto ({v.presupuesto.length} categorías).</Status>
+              : <p className="muted small">{v.presupuesto.filter((a) => a.estado === 'excedido').length} excedidos · {v.presupuesto.filter((a) => a.estado === 'alerta').length} sobre el 80 %</p>}
+            <div className="stack budgets">{v.presupuesto.slice(0, 3).map((a) => <BarraPresupuesto key={a.presupuesto.id} a={a} />)}</div>
+          </>
+        )}
+      </section>
 
       <section className="card stack">
         <div className="row"><h2>Pagos por atender</h2><button className="btn link small" onClick={onVerPagos}>Ver todos</button></div>

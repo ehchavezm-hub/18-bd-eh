@@ -18,11 +18,13 @@ export const SYNC_TABLES: TableName[] = [
   'MOVIMIENTOS', 'INSTITUCIONES', 'CUENTAS', 'CATEGORIAS', 'CENTROS', 'LUGARES', 'MONEDAS', 'TIPO_CAMBIO',
   'PAISES', 'LISTAS', 'CONFIG', 'RECURRENTES', 'PRESUPUESTOS', 'REGLAS_CATEGORIZACION', 'CIERRES_MES',
 ];
+/** Tablas opcionales: si la hoja no las tiene, la app sigue funcionando sin ellas. */
+export const OPTIONAL_TABLES: TableName[] = ['METAS', 'ACTIVOS'];
 
 const ID_COL: Partial<Record<TableName, string>> = {
   MOVIMIENTOS: 'MOVIMIENTO_ID', INSTITUCIONES: 'INSTITUCION_ID', CUENTAS: 'CUENTA_ID', CATEGORIAS: 'CATEGORIA_ID',
   CENTROS: 'CENTRO_ID', LUGARES: 'LUGAR_ID', MONEDAS: 'MONEDA', RECURRENTES: 'RECURRENTE_ID', PRESUPUESTOS: 'PRESUPUESTO_ID',
-  REGLAS_CATEGORIZACION: 'REGLA_ID', BITACORA: 'BITACORA_ID', TIPO_CAMBIO: 'TIPO_CAMBIO_SIN_ID', PAISES: 'PAIS_ID', CONTRAPARTES: 'CONTRAPARTE_ID',
+  REGLAS_CATEGORIZACION: 'REGLA_ID', METAS: 'META_ID', ACTIVOS: 'ACTIVO_ID', BITACORA: 'BITACORA_ID', TIPO_CAMBIO: 'TIPO_CAMBIO_SIN_ID', PAISES: 'PAIS_ID', CONTRAPARTES: 'CONTRAPARTE_ID',
 };
 export const idColumn = (t: TableName) => ID_COL[t] ?? 'ID';
 
@@ -46,6 +48,8 @@ const set = (patch: Partial<StoreState>) => {
 };
 
 export const getState = () => state;
+/** Fuerza a recalcular las pantallas (p. ej. cuando llega el tipo de cambio histórico). */
+export const refrescar = () => set({});
 export function useStore(): StoreState {
   return useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, () => state);
 }
@@ -143,6 +147,8 @@ export function sync(): Promise<void> {
       }
       // 2) Traer la versión actual de las tablas.
       const fresh = await adapter.readMany(SYNC_TABLES);
+      try { Object.assign(fresh, await adapter.readMany(OPTIONAL_TABLES)); }
+      catch (e) { if (e instanceof DataError && (e.kind === 'auth' || e.kind === 'network')) throw e; /* la hoja no tiene esas pestañas */ }
       const stamp = nowStamp();
       const cifradas = await Promise.all(Object.entries(fresh).map(async ([t, rows]) => ({ table: t, enc: await cifrar(rows), fetchedAt: stamp })));
       await localDb.transaction('rw', localDb.cache, async () => { await localDb.cache.bulkPut(cifradas); });

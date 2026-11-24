@@ -67,6 +67,8 @@ async function main() {
   await mkdir('public/tc', { recursive: true });
   await writeFile(OUT, JSON.stringify({ fuente: 'BCRP PD04640PD (venta, S/ por US$)', actualizado: hoy, datos }));
   console.log(`Escrito ${OUT}: ${datos.length} días.`);
+  const m = new Map(datos);
+  console.log('Muestra:', ['2018-01-02', '2020-03-16', '2024-09-03', datos.at(-1)?.[0]].map((f) => `${f}=${m.get(f) ?? '—'}`).join(' '));
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) main();

@@ -51,6 +51,10 @@ La app quedará en: <https://ehchavezm-hub.github.io/18-bd-eh/>
 
 Al abrirla por primera vez: activa Face ID / huella y un PIN, entra con Google y **elige tu hoja en el selector de Drive**. La app solo podrá abrir ese archivo.
 
+- **Computadora (Windows o Mac):** abre el enlace en **Chrome o Edge** → icono de instalar en la barra de direcciones (o menú ⋮ → **Instalar Mis Finanzas**). En Mac con Safari: **Archivo → Agregar al Dock**. También funciona sin instalar, como página web.
+- El desbloqueo en la computadora usa **Windows Hello** o **Touch ID**; si el equipo no tiene, se usa el PIN.
+- Cada dispositivo (teléfono, computadora) tiene su propio bloqueo y elige la misma hoja en el selector de Drive.
+
 ## 7. Antes de empezar: seguridad de la hoja
 - En Google Sheets → **Compartir** → Acceso general: **Restringido**. Nadie más en la lista.
 - Activa la **verificación en dos pasos** en tu cuenta de Google y en GitHub.

@@ -12,13 +12,23 @@ import { HomeScreen, Placeholder } from './features/home/HomeScreen';
 import { AdminScreen } from './features/admin/AdminScreen';
 
 type Tab = 'inicio' | 'movimientos' | 'anotar' | 'cuentas' | 'reportes';
-const TABS: { id: Tab; label: string; ico: string }[] = [
-  { id: 'inicio', label: 'Inicio', ico: '⌂' },
-  { id: 'movimientos', label: 'Movimientos', ico: '☰' },
-  { id: 'anotar', label: 'Anotar', ico: '＋' },
-  { id: 'cuentas', label: 'Cuentas', ico: '◫' },
-  { id: 'reportes', label: 'Reportes', ico: '◔' },
+const ICON: Record<Tab, string> = {
+  inicio: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+  movimientos: 'M4 6h16M4 12h16M4 18h10',
+  anotar: 'M12 5v14M5 12h14',
+  cuentas: 'M3 7h18v12H3zM3 11h18M7 15h4',
+  reportes: 'M5 20V10M12 20V4M19 20v-7',
+};
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'inicio', label: 'Inicio' },
+  { id: 'movimientos', label: 'Movimientos' },
+  { id: 'anotar', label: 'Anotar' },
+  { id: 'cuentas', label: 'Cuentas' },
+  { id: 'reportes', label: 'Reportes' },
 ];
+const Icon = ({ d }: { d: string }) => (
+  <svg className="ico" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+);
 
 export function App() {
   const [settings, setSettings] = useState(loadSettings);
@@ -134,7 +144,7 @@ export function App() {
       <nav className="tabbar">
         {TABS.map((t) => (
           <button key={t.id} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
-            <span className="ico">{t.ico}</span>{t.label}
+            <Icon d={ICON[t.id]} />{t.label}
           </button>
         ))}
       </nav>

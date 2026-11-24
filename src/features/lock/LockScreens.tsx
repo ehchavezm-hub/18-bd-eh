@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { biometricAvailable, enrollBiometric, isValidPin, setPin, verifyBiometric, verifyPin } from '../../auth/lock';
 import { loadSettings } from '../../config/settings';
 
-/** Primera vez: activar Face ID / huella y un PIN de respaldo. */
+/** Primera vez: activar Face ID / huella / Windows Hello y un PIN de respaldo. */
 export function LockSetupScreen({ onDone }: { onDone: () => void }) {
   const [bio, setBio] = useState<boolean | null>(null);
   const [bioOn, setBioOn] = useState(false);
@@ -26,8 +26,8 @@ export function LockSetupScreen({ onDone }: { onDone: () => void }) {
       <p className="muted">Se pedirá al abrir la app y al entrar a Configuración.</p>
       {bio && (
         <div className="card stack">
-          <h2>Face ID / huella</h2>
-          {bioOn ? <span className="badge ok">Activado</span> : <button className="btn" onClick={activateBio}>Activar Face ID / huella</button>}
+          <h2>Face ID / huella / Windows Hello</h2>
+          {bioOn ? <span className="badge ok">Activado</span> : <button className="btn" onClick={activateBio}>Activar Face ID / huella / Windows Hello</button>}
         </div>
       )}
       <div className="card stack">
@@ -42,7 +42,7 @@ export function LockSetupScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
-/** Desbloqueo: Face ID / huella primero, PIN como respaldo. */
+/** Desbloqueo: Face ID / huella / Windows Hello primero, PIN como respaldo. */
 export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onUnlock: () => void; onCancel?: () => void }) {
   const hasBio = !!loadSettings().webauthnCredentialId;
   const [pin, setPinValue] = useState('');
@@ -60,7 +60,7 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
   return (
     <main className="screen center">
       <h1>{title}</h1>
-      {hasBio && <button className="btn" onClick={tryBio}>Usar Face ID / huella</button>}
+      {hasBio && <button className="btn" onClick={tryBio}>Usar Face ID / huella / Windows Hello</button>}
       <div className="card stack">
         <input className="pin" type="password" inputMode="numeric" maxLength={6} placeholder="PIN" value={pin}
           onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))} />

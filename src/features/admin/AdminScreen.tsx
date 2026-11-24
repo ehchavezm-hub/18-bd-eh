@@ -24,7 +24,7 @@ export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe }: { onSi
       </section>
       <section className="card stack">
         <h2>Este teléfono</h2>
-        <p className="muted">Bloqueo: {s.webauthnCredentialId ? 'Face ID / huella + PIN' : 'PIN'}</p>
+        <p className="muted">Bloqueo: {s.webauthnCredentialId ? 'Biometría (Face ID, huella, Touch ID o Windows Hello) + PIN' : 'PIN'}</p>
         <button className="btn secondary" onClick={onChangeSheet}>Cambiar hoja de cálculo</button>
         <p className="muted">Cuenta vinculada: {s.ownerEmail ?? '—'}</p>
         <button className="btn secondary" onClick={onSignOut}>Cerrar sesión de Google</button>

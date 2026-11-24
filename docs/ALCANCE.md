@@ -1,6 +1,6 @@
 # Alcance de la app · Finanzas personales
 
-**Estado:** aprobado · **Versión del documento:** 1.1 (se agregan dashboards) · **Esquema de BD:** v3
+**Estado:** aprobado · **Versión del documento:** 1.2 (dashboards; uso también en computadora) · **Esquema de BD:** v3
 
 ## 1. Objetivo
 
@@ -10,11 +10,11 @@ Registrar todos los ingresos, egresos y transferencias en segundos desde el tel�
 
 | Tema | Decisión |
 |---|---|
-| Tipo de app | App web instalable (PWA): un solo código para iPhone y Android, sin tiendas |
+| Tipo de app | App web instalable (PWA): un solo código para iPhone, Android y computadora (Windows / Mac, en Chrome, Edge o Safari), sin tiendas |
 | Base de datos | Google Sheets en el Google Drive del propietario (esquema v3, 33 pestañas) |
 | Hosting | GitHub Pages (gratis). El repositorio contiene solo código, nunca datos |
 | Usuarios | Un usuario (el propietario), que también es administrador. Preparado para roles futuros |
-| Acceso | Cuenta Google (una vez) + desbloqueo con Face ID / huella / PIN |
+| Acceso | Cuenta Google (una vez) + desbloqueo con Face ID / huella / Touch ID / Windows Hello / PIN |
 | Sin internet | Sí: guarda en el teléfono y sincroniza al volver la conexión |
 | Prioridad | Versión 1 pronto y simple; el resto en versiones siguientes |
 
@@ -105,7 +105,7 @@ Diseñados con la skill `dataviz`: primero se elige la forma según la pregunta,
 | 4. Reportes y dashboards | F8, F13 (D1–D5) | Ver en qué se gasta |
 | 5. Foto y dividir | F4, F5 | Versión 1 completa |
 
-Cada etapa se prueba en ambos teléfonos antes de pasar a la siguiente.
+Cada etapa se prueba en iPhone, Android y computadora antes de pasar a la siguiente. En la computadora el menú pasa al costado y los dashboards usan el ancho de la pantalla.
 
 ## 7. Pensado para el futuro
 

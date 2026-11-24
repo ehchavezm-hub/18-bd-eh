@@ -22,7 +22,7 @@ La información financiera del propietario es confidencial. Este documento fija 
 4. **Cuenta vinculada:** el teléfono queda unido a la cuenta de Google del primer acceso; otra cuenta es rechazada.
 5. **Bloqueo local:** Face ID / huella (WebAuthn) o PIN (guardado solo como hash PBKDF2); bloqueo automático tras 2 minutos fuera de la app; verificación adicional para Configuración.
 6. **Política de contenido (CSP):** el navegador solo ejecuta código de la propia app y de Google; bloquea scripts inyectados.
-7. **Clave de API restringida:** sirve solo para el selector de Drive y solo desde `https://ehchavezm-hub.github.io`.
+7. **Clave de API restringida:** sirve solo para el selector de Drive (Google Picker API) y solo desde `https://ehchavezm-hub.github.io` y `https://docs.google.com` (donde Google muestra el selector). Por sí sola no da acceso a ningún archivo: además se necesita el permiso de la cuenta del propietario.
 8. **Borrado:** "Borrar todo de este teléfono" elimina sesión, bloqueo y copia local; la BD en Drive no se toca.
 
 ## 3. Reglas que no se rompen

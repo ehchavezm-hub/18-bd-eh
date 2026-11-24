@@ -29,7 +29,7 @@ La app necesita un **ID de cliente OAuth** para que puedas entrar con tu cuenta 
 
 ## 4b. Crear la clave de API (para el selector de Drive)
 1. **Credenciales → Crear credenciales → Clave de API**.
-2. Abre la clave → **Restricciones de aplicación: Sitios web** → agrega `https://ehchavezm-hub.github.io/*` (y `http://localhost:5173/*` solo si vas a desarrollar).
+2. Abre la clave → **Restricciones de aplicación: Sitios web** → agrega `https://ehchavezm-hub.github.io/*` **y** `https://docs.google.com/*` (el selector de Drive se muestra desde ese dominio de Google; sin él aparece "La clave de desarrollador de la API no es válida"). Agrega `http://localhost:5173/*` solo si vas a desarrollar.
 3. **Restricciones de API: Restringir clave** → marca solo **Google Picker API** → Guardar.
 4. Copia la clave (empieza con `AIza`).
 5. Copia también el **Número del proyecto**: ☰ → **Configuración del proyecto** (o el panel del proyecto) → "Número del proyecto" (solo dígitos).

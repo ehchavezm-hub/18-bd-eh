@@ -39,3 +39,18 @@
 3. **Protección de rama** en GitHub (Settings → Branches → Add rule): solo tú publicas.
 4. No aceptar los *pull requests* automáticos de Dependabot sin revisarlos.
 5. En la computadora, un usuario del sistema solo tuyo y el disco cifrado (BitLocker / FileVault).
+
+## Segunda auditoría: skills de Trail of Bits (24 nov 2026)
+
+Herramientas: `semgrep` (444 reglas públicas de JavaScript/TypeScript, HTML, secretos y GitHub Actions), `supply-chain-risk-auditor`, `npm audit`, y revisión manual con `sharp-edges` e `insecure-defaults`.
+
+| # | Gravedad | Hallazgo | Corrección | Estado |
+|---|---|---|---|---|
+| 14 | **Alta** | Junto a la bóveda se guardaba un hash del PIN con **menos** iteraciones (150 000) que la propia bóveda: era el atajo más barato para adivinar el PIN con una copia del almacenamiento | Ya no se guarda ningún hash: el PIN solo se comprueba abriendo la bóveda. Los hashes antiguos se borran al entrar | ✅ Probado |
+| 15 | Media | PBKDF2 con 310 000 iteraciones (OWASP recomienda 600 000 desde 2023) | 600 000 iteraciones; las bóvedas antiguas se refuerzan solas al abrir con PIN | ✅ Probado |
+| 16 | Media | Dependencias de compilación `glob` y `minimatch` con avisos moderados (GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249) | `overrides` a `glob` 14.0.6 (`minimatch` 11.0.9). `npm audit`: 0 vulnerabilidades | ✅ |
+| 17 | Baja | El tiempo de bloqueo se leía del almacenamiento sin límites (un valor alterado podía evitar el bloqueo) | Se acota a 0–15 minutos | ✅ |
+| 18 | Info | Semgrep: 122 avisos; 117 son textos sin traducir (i18n), 3 son `confirm()`, 1 es un falso positivo de "API key" y 1 es una expresión regular con un prefijo interno fijo | Sin riesgo | Revisado |
+| 19 | Límite | Con un PIN de 6 dígitos, quien **copie** el almacenamiento puede intentar el millón de PIN sin conexión (el límite de intentos solo protege la pantalla) | Usar Face ID (la clave biométrica no se puede adivinar) y el cifrado de disco del dispositivo. La hoja de Google sigue protegida por tu cuenta | Aceptado |
+
+**No evaluable desde el entorno de auditoría:** OSV y la API de GitHub no respondieron al auditor de dependencias, así que los avisos se tomaron de `npm audit`. `npm audit` usa la base de avisos de GitHub y también corre en cada publicación.

@@ -34,3 +34,32 @@ describe('límite de intentos de PIN', () => {
     expect(esperaPin()).toBe(0);
   });
 });
+
+import { loadSettings, saveSettings } from '../config/settings';
+import { cerrarVault } from '../auth/vault';
+describe('el PIN solo abre la bóveda (sin hash más débil guardado)', () => {
+  beforeEach(() => { localStorage.clear(); cerrarVault(); });
+  it('no guarda pinHash y la bóveda usa 600 000 iteraciones', async () => {
+    await setPin('482193');
+    const s = loadSettings();
+    expect(s.pinHash).toBeUndefined();
+    expect((s.vault as { iter?: number }).iter).toBe(600_000);
+    cerrarVault();
+    expect(await verifyPin('111111')).toBe(false);
+    expect(await verifyPin('482193')).toBe(true);
+  });
+  it('bóveda antigua (310 000 iteraciones) se refuerza a 600 000 al abrir con PIN', async () => {
+    const { b64 } = await import('../auth/vault');
+    const raw = crypto.getRandomValues(new Uint8Array(32)), salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode('482193'), 'PBKDF2', false, ['deriveKey']);
+    const k = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 310_000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, raw));
+    const sellado = new Uint8Array(12 + ct.length); sellado.set(iv); sellado.set(ct, 12);
+    saveSettings({ vault: { v: 1, salt: b64.enc(salt), pin: b64.enc(sellado), prfSalt: b64.enc(new Uint8Array(32)) }, pinHash: 'viejo', pinSalt: 'sal' });
+    expect(await verifyPin('482193')).toBe(true);
+    expect((loadSettings().vault as { iter?: number }).iter).toBe(600_000);
+    expect(loadSettings().pinHash).toBeUndefined();
+    cerrarVault();
+    expect(await verifyPin('482193')).toBe(true); // sigue abriendo tras el refuerzo
+  });
+});

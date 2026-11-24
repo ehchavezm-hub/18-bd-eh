@@ -29,17 +29,20 @@ export interface VaultConfig {
   pin: string;         // clave de datos envuelta con la clave del PIN
   prfSalt: string;     // sal que se envía a la biometría (PRF)
   prf?: string;        // clave de datos envuelta con la clave de la biometría
+  iter?: number;       // iteraciones PBKDF2 del PIN (ausente = 310 000, bóvedas antiguas)
 }
 
 let dataKey: CryptoKey | null = null;
 let crudo: Uint8Array | null = null; // solo en memoria, para poder agregar la envoltura biométrica
 
-const ITER = 310_000;
+// OWASP 2023: 600 000 iteraciones para PBKDF2-SHA256. Las bóvedas antiguas (310 000) se reenvuelven solas al abrir con PIN.
+const ITER = 600_000;
+const ITER_ANTIGUO = 310_000;
 const aesKey = (raw: BufferSource, usos: KeyUsage[], extraible = false) => crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, extraible, usos);
 
-async function clavePin(pin: string, salt: Uint8Array) {
+async function clavePin(pin: string, salt: Uint8Array, iterations = ITER) {
   const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: ITER, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
 }
 async function clavePrf(prf: ArrayBuffer) {
   const base = await crypto.subtle.importKey('raw', prf, 'HKDF', false, ['deriveKey']);
@@ -71,7 +74,7 @@ async function activar(raw: Uint8Array) {
 export async function crearVault(pin: string): Promise<void> {
   const raw = crypto.getRandomValues(new Uint8Array(32));
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const cfg: VaultConfig = { v: 1, salt: b64.enc(salt), pin: await sellar(await clavePin(pin, salt), raw), prfSalt: b64.enc(crypto.getRandomValues(new Uint8Array(32))) };
+  const cfg: VaultConfig = { v: 1, salt: b64.enc(salt), pin: await sellar(await clavePin(pin, salt), raw), iter: ITER, prfSalt: b64.enc(crypto.getRandomValues(new Uint8Array(32))) };
   saveSettings({ vault: cfg });
   await activar(raw);
 }
@@ -80,7 +83,9 @@ export async function crearVault(pin: string): Promise<void> {
 export async function abrirConPin(pin: string): Promise<boolean> {
   const cfg = config();
   if (!cfg) { await crearVault(pin); return true; }
-  try { await activar(await abrir(await clavePin(pin, b64.dec(cfg.salt)), cfg.pin)); return true; } catch { return false; }
+  try { await activar(await abrir(await clavePin(pin, b64.dec(cfg.salt), cfg.iter ?? ITER_ANTIGUO), cfg.pin)); } catch { return false; }
+  if ((cfg.iter ?? ITER_ANTIGUO) < ITER) await recifrarConPin(pin); // refuerzo automático
+  return true;
 }
 
 /** Abre la bóveda con el secreto que entrega la biometría (PRF). */
@@ -102,7 +107,7 @@ export async function recifrarConPin(pin: string): Promise<void> {
   const cfg = config();
   if (!cfg || !crudo) return;
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  saveSettings({ vault: { ...cfg, salt: b64.enc(salt), pin: await sellar(await clavePin(pin, salt), crudo) } });
+  saveSettings({ vault: { ...cfg, salt: b64.enc(salt), iter: ITER, pin: await sellar(await clavePin(pin, salt), crudo) } });
 }
 
 /** Olvida la clave de la memoria (por ejemplo, al borrar todo). */

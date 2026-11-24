@@ -44,6 +44,8 @@ const nombreCiclo = (p: number) => {
 
 export function FourierCard({ meses, valores }: { meses: string[]; valores: number[] }) {
   const [n, setN] = useState(3);
+  // Pausa elegida por la persona (se recuerda). Con «Reducir movimiento» del iPhone gira más lento, pero gira.
+  const [pausa, setPausa] = useState(() => { try { return localStorage.getItem('finanzas.fourierPausa') === '1'; } catch { return false; } });
   const ref = useRef<HTMLCanvasElement>(null);
   const data = useMemo(() => ciclos(valores), [valores]);
   const usados = data.ciclos.slice(0, n);
@@ -59,7 +61,9 @@ export function FourierCard({ meses, valores }: { meses: string[]; valores: numb
     if (!canvas || !ctx || N < 4) return;
     const reducir = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    let w = 0, h = 0, raf = 0, t = 0;
+    let w = 0, h = 0, raf = 0, t = 0, antes = 0;
+    // Una vuelta completa: ~9 s (18 s con «Reducir movimiento»). Basado en el tiempo, no en cuadros: igual de fluido a 30 o 120 Hz.
+    const vel = (N - 1) / (reducir ? 18_000 : 9_000);
     // Escala ajustada al rango real (no desde cero): círculos y onda se ven grandes.
     const recon = Array.from({ length: 161 }, (_, s2) => reconstruir(data.media, usados, N, (s2 / 160) * (N - 1)));
     const alcance = usados.reduce((s2, c) => s2 + c.amp, 0);
@@ -90,7 +94,7 @@ export function FourierCard({ meses, valores }: { meses: string[]; valores: numb
       ctx.beginPath(); ctx.moveTo(x0 - izq * 0.45, y(data.media)); ctx.lineTo(xw1, y(data.media)); ctx.stroke(); ctx.setLineDash([]);
 
       // círculos (epiciclos): el centro baja la media; cada círculo suma su ciclo
-      const tt = reducir ? N - 1 : t;
+      const tt = pausa ? N - 1 : t;
       let cx = x0, cy = y(data.media);
       for (const c of usados) {
         const r = c.amp * escala;
@@ -117,14 +121,17 @@ export function FourierCard({ meses, valores }: { meses: string[]; valores: numb
       ctx.fillStyle = '#ffd966'; ctx.beginPath(); ctx.arc(xi, cy, 5, 0, Math.PI * 2); ctx.fill();
     };
 
-    const cuadro = () => { dibujar(); t += (N - 1) / 520; if (t > N - 1) t = 0; raf = requestAnimationFrame(cuadro); };
-    const iniciar = () => { cancelAnimationFrame(raf); medir(); if (reducir) dibujar(); else raf = requestAnimationFrame(cuadro); };
+    const cuadro = (ahora: number) => {
+      if (antes) t = (t + Math.min(100, ahora - antes) * vel) % (N - 1);
+      antes = ahora; dibujar(); raf = requestAnimationFrame(cuadro);
+    };
+    const iniciar = () => { cancelAnimationFrame(raf); antes = 0; medir(); if (pausa) dibujar(); else raf = requestAnimationFrame(cuadro); };
     const vis = () => (document.visibilityState === 'visible' ? iniciar() : cancelAnimationFrame(raf));
     const io = new IntersectionObserver(([e]) => (e.isIntersecting ? iniciar() : cancelAnimationFrame(raf)));
     const ro = new ResizeObserver(() => iniciar());
     io.observe(canvas); ro.observe(canvas); document.addEventListener('visibilitychange', vis);
     return () => { cancelAnimationFrame(raf); io.disconnect(); ro.disconnect(); document.removeEventListener('visibilitychange', vis); };
-  }, [valores, meses, data, usados, N]);
+  }, [valores, meses, data, usados, N, pausa]);
 
   if (N < 4) return null;
   return (
@@ -134,8 +141,11 @@ export function FourierCard({ meses, valores }: { meses: string[]; valores: numb
           <h2>Tu gasto en series de Fourier</h2>
           <p className="fourier-sub">Cada círculo es un ciclo de tu gasto mensual. Sumados, dibujan la onda dorada que reconstruye tu gasto real (puntos blancos) de {monthShort(meses[0])} a {monthShort(meses[N - 1])}.</p>
         </div>
+        <div className="fourier-ctl">
+          <button type="button" className="fourier-play" aria-label={pausa ? 'Reproducir animación' : 'Pausar animación'} onClick={() => { const v = !pausa; setPausa(v); try { localStorage.setItem('finanzas.fourierPausa', v ? '1' : '0'); } catch { /* nada */ } }}>{pausa ? '▶' : '❚❚'}</button>
         <div className="fourier-n" role="radiogroup" aria-label="Número de círculos">
           {[3, 5, 8].map((x) => <button key={x} type="button" role="radio" aria-checked={n === x} className={n === x ? 'on' : ''} onClick={() => setN(x)}>{x} círculos</button>)}
+        </div>
         </div>
       </div>
       <canvas ref={ref} className="fourier-canvas" role="img" aria-label={`Animación: ${n} círculos reconstruyen el gasto mensual`} />

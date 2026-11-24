@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { biometricAvailable, enrollBiometric, esperaPin, isValidNewPin, isValidPin, setPin, verifyBiometric, verifyPin } from '../../auth/lock';
-import { abrirConPin, abrirConPrf, agregarPrf, crearVault, tieneEnvolturaBiometrica, vaultAbierto } from '../../auth/vault';
+import { abrirConPrf, agregarPrf, tieneEnvolturaBiometrica, vaultAbierto } from '../../auth/vault';
 import { loadSettings } from '../../config/settings';
 
 /** Primera vez: activar Face ID / huella / Windows Hello y un PIN de 6 dígitos. Crea la bóveda cifrada. */
@@ -19,8 +19,7 @@ export function LockSetupScreen({ onDone }: { onDone: () => void }) {
   async function finish() {
     setError(null);
     try {
-      await setPin(pin);
-      await crearVault(pin);
+      await setPin(pin); // crea la bóveda cifrada protegida por el PIN
       // Si la biometría está activa, pide una vez Face ID / huella para poder abrir la bóveda sin PIN.
       if (bioOn) { const r = await verifyBiometric(); if (r.prf) await agregarPrf(r.prf); }
       onDone();
@@ -79,7 +78,6 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
       setPinValue('');
       return;
     }
-    if (!vaultAbierto() && !(await abrirConPin(pin))) { setError('No se pudo abrir la bóveda con ese PIN.'); return; }
     if (prfPendiente && !tieneEnvolturaBiometrica()) await agregarPrf(prfPendiente);
     onUnlock();
   }

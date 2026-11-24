@@ -46,6 +46,8 @@ const Icon = ({ d }: { d: string }) => (
   <svg className="ico" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
 );
 const DEVICE = deviceName();
+// Valor guardado en el dispositivo: se acota a 0–15 min para que un ajuste alterado no deje la app sin bloqueo.
+const minutosBloqueo = () => { const m = Number(loadSettings().lockAfterMinutes); return Number.isFinite(m) ? Math.min(15, Math.max(0, m)) : 2; };
 
 export function App() {
   const [settings, setSettings] = useState(loadSettings);
@@ -72,7 +74,7 @@ export function App() {
         document.documentElement.classList.add('privacy');
       } else {
         document.documentElement.classList.remove('privacy');
-        if (hiddenAt.current && Date.now() - hiddenAt.current > (loadSettings().lockAfterMinutes ?? 2) * 60_000) bloquear();
+        if (hiddenAt.current && Date.now() - hiddenAt.current > minutosBloqueo() * 60_000) bloquear();
         ultimaActividad = Date.now();
       }
     };

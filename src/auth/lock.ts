@@ -4,7 +4,7 @@
  * dependiendo de la cuenta de Google.
  */
 import { loadSettings, saveSettings } from '../config/settings';
-import { b64 as b64std, prfSalt } from './vault';
+import { abrirConPin, b64 as b64std, crearVault, prfSalt, vaultConfigurado } from './vault';
 
 const b64u = {
   enc(buf: ArrayBuffer | Uint8Array) {
@@ -80,10 +80,14 @@ export const isValidPin = (pin: string) => /^\d{4,6}$/.test(pin);
 /** Los PIN nuevos deben tener 6 dígitos (1 000 000 combinaciones en lugar de 10 000). */
 export const isValidNewPin = (pin: string) => /^\d{6}$/.test(pin);
 
+/**
+ * Crea el PIN. No se guarda ningún hash del PIN: el PIN solo "existe" como la llave que abre la bóveda.
+ * Así no hay un atajo más débil (antes: hash con 150 000 iteraciones junto a la bóveda con más).
+ */
 export async function setPin(pin: string): Promise<void> {
   if (!isValidNewPin(pin)) throw new Error('El PIN debe tener 6 números.');
-  const salt = b64u.enc(random(16));
-  saveSettings({ pinSalt: salt, pinHash: await hashPin(pin, salt), lockMethod: loadSettings().lockMethod ?? 'pin' });
+  await crearVault(pin);
+  saveSettings({ pinHash: undefined, pinSalt: undefined, lockMethod: loadSettings().lockMethod ?? 'pin' });
 }
 
 const INTENTOS = 'finanzas.pin.intentos.v1';
@@ -99,9 +103,19 @@ export const esperaPin = (ahora = Date.now()) => Math.max(0, Math.ceil((leerInte
  * y la espera se duplica con cada fallo adicional (máximo 1 hora).
  */
 export async function verifyPin(pin: string): Promise<boolean> {
+  if (esperaPin() > 0) return false;
   const { pinHash, pinSalt } = loadSettings();
-  if (!pinHash || !pinSalt || esperaPin() > 0) return false;
-  const ok = (await hashPin(pin, pinSalt)) === pinHash;
+  let ok: boolean;
+  if (vaultConfigurado()) {
+    // El PIN correcto es el que abre la bóveda (AES-GCM autentica: un PIN errado no puede "abrirla" a medias).
+    ok = await abrirConPin(pin);
+    if (ok && pinHash) saveSettings({ pinHash: undefined, pinSalt: undefined }); // retira el hash antiguo
+  } else {
+    // Versiones antiguas sin bóveda: se valida el hash y se crea la bóveda.
+    if (!pinHash || !pinSalt) return false;
+    ok = (await hashPin(pin, pinSalt)) === pinHash && (await abrirConPin(pin));
+    if (ok) saveSettings({ pinHash: undefined, pinSalt: undefined });
+  }
   const i = leerIntentos();
   if (ok) { guardarIntentos({ fallos: 0, bloqueadoHasta: 0 }); return true; }
   const fallos = (i.fallos ?? 0) + 1;
@@ -112,5 +126,5 @@ export async function verifyPin(pin: string): Promise<boolean> {
 
 export const lockConfigured = () => {
   const s = loadSettings();
-  return !!(s.webauthnCredentialId || s.pinHash);
+  return !!(s.webauthnCredentialId || s.pinHash || s.vault);
 };

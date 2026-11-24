@@ -397,3 +397,5 @@ html.discreto .sankey-val, html.discreto table.data td.num, html.discreto .pay-m
 html.discreto .fourier-canvas { filter: blur(3px); }
 .head-actions { display: flex; align-items: center; gap: 8px; margin-right: 48px; }
 .icon-btn { min-height: 40px; width: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+.fourier-ctl { display: inline-flex; align-items: center; gap: 8px; }
+.fourier-play { border: 0; width: 36px; height: 36px; border-radius: 50%; background: rgb(255 255 255 / 0.14); color: #fff; font-size: 0.8rem; cursor: pointer; flex: none; }

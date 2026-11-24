@@ -1,0 +1,34 @@
+# --- Datos personales: NUNCA se suben a este repositorio (es público) ---
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.ods
+*.ofx
+*.qif
+*.pdf
+datos/
+backups/
+uploads/
+
+# --- Credenciales y secretos ---
+.env
+.env.*
+*.pem
+*.key
+credentials*.json
+service-account*.json
+client_secret*.json
+token*.json
+.clasprc.json
+
+# --- Dependencias y compilados ---
+node_modules/
+dist/
+build/
+.cache/
+coverage/
+*.log
+.DS_Store
+.vscode/
+.idea/

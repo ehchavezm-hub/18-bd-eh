@@ -1,0 +1,8 @@
+# Finanzas personales · App de ingresos y egresos
+
+App web instalable (PWA) para registrar ingresos, egresos y transferencias desde el teléfono (iPhone y Android), con la base de datos en Google Sheets dentro del Google Drive del propietario.
+
+- **Alcance y fases:** [docs/ALCANCE.md](docs/ALCANCE.md)
+- **Arquitectura y decisiones técnicas:** [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)
+
+> ⚠️ Este repositorio es público. **Nunca** se suben aquí datos financieros, archivos Excel/CSV, credenciales ni claves. El `.gitignore` los bloquea.

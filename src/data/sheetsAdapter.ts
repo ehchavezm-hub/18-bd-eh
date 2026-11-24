@@ -22,7 +22,8 @@ export class SheetsAdapter implements DataAdapter {
   ) {}
 
   private async call<T>(path: string, init?: RequestInit): Promise<T> {
-    const token = await this.getToken();
+    let token: string;
+    try { token = await this.getToken(); } catch (e) { throw new DataError((e as Error).message || 'Conéctate con Google para sincronizar.', 'auth'); }
     let res: Response;
     try {
       res = await fetch(`${API}/${this.spreadsheetId}${path}`, {

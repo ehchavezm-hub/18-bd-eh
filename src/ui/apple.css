@@ -183,3 +183,8 @@ input[type='search'] { padding-left: 34px; background-image: url("data:image/svg
   .filters select { flex: none; width: auto; min-height: 36px; border-radius: 999px; padding: 6px 30px 6px 14px; font-size: 16px; font-weight: 500;
     -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23007aff' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
 }
+
+/* Aviso discreto para reconectar con Google (no bloquea la app) */
+.msg.conectar { display: flex; align-items: center; gap: 12px; justify-content: space-between;
+  background: color-mix(in srgb, #0a84ff 12%, transparent); color: inherit; }
+.msg.conectar span { flex: 1; font-size: 0.9rem; }

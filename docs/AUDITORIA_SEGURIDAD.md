@@ -23,7 +23,7 @@
 | 3 | **Alta** | Las acciones de GitHub se referenciaban por etiqueta (`@v4`), que su autor puede mover | Fijadas por hash de commit; `persist-credentials: false`; `npm ci --ignore-scripts`; `npm audit` en cada publicación | ✅ |
 | 4 | Media | Clickjacking: la app podía mostrarse dentro de otra página | La app se niega a mostrarse dentro de un iframe (GitHub Pages no permite la cabecera `frame-ancestors`) | ✅ Verificado |
 | 5 | Media | La app abierta sin uso quedaba desbloqueada indefinidamente | Bloqueo tras 5 minutos sin actividad, además de los 2 minutos fuera de la app | ✅ |
-| 6 | Media | Al bloquear, el token de Google seguía en memoria | Se olvida al bloquear y se pide de nuevo al desbloquear | ✅ |
+| 6 | Media | Al bloquear, el token de Google seguía en memoria | El token vive solo en memoria (nunca en disco), dura máx. 1 hora y solo abre la hoja elegida (`drive.file`). Se conserva al bloquear para no pedir Google en cada apertura; la app no muestra nada sin Face ID/PIN | ✅ Aceptado |
 | 7 | Media | La vista previa del selector de apps (iPhone/Android) mostraba montos | Pantalla de privacidad: el contenido se difumina al salir de la app | ✅ |
 | 8 | Media | PIN de 4 dígitos (10 000 combinaciones) | PIN nuevos de 6 dígitos (1 000 000), se rechazan 111111, 123456 y similares; límite de intentos con espera creciente | ✅ |
 | 9 | Baja | Personas cerca pueden ver montos | **Modo discreto** (ojo en Inicio): difumina todos los montos | ✅ |

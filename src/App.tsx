@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { clearSettings, GOOGLE_API_KEY, GOOGLE_APP_ID, GOOGLE_CLIENT_ID, loadSettings, saveSettings } from './config/settings';
 import { SCHEMA_VERSION } from './config/schema';
-import { getEmail, getToken, olvidarToken, signIn, signOut } from './auth/google';
+import { getEmail, getToken, hasToken, signIn, signOut } from './auth/google';
 import { cerrarVault, vaultAbierto } from './auth/vault';
 import { lockConfigured } from './auth/lock';
 import { SheetsAdapter } from './data/sheetsAdapter';
 import { checkSchema } from './data/schemaCheck';
 import { DataError } from './data/adapter';
 import { localDb } from './data/localDb';
-import { initStore, resetStore, sync, useStore } from './data/store';
+import { getState, initStore, resetStore, sync, useStore } from './data/store';
 import { deviceName, useData } from './data/useData';
 import { porAtender } from './domain/recurring';
 import { todayIso } from './domain/dates';
@@ -23,7 +23,7 @@ import { AccountsScreen } from './features/cuentas/AccountsScreen';
 import { PaymentsScreen } from './features/pagos/PaymentsScreen';
 import { ReportsScreen } from './features/reportes/ReportsScreen';
 import { updateBadgeAndNotify } from './features/pagos/notify';
-import { Sheet, ToastHost } from './ui/kit';
+import { Sheet, toast, ToastHost } from './ui/kit';
 
 type Tab = 'inicio' | 'movimientos' | 'anotar' | 'cuentas' | 'reportes' | 'pagos';
 const ICON: Record<Tab, string> = {
@@ -49,7 +49,9 @@ const DEVICE = deviceName();
 
 export function App() {
   const [settings, setSettings] = useState(loadSettings);
-  const [signedIn, setSignedIn] = useState(false);
+  // Si ya entraste antes en este dispositivo, no se vuelve a mostrar la pantalla de Google:
+  // la app abre con tus datos y Google se reconecta en segundo plano.
+  const [signedIn, setSignedIn] = useState(() => { const s = loadSettings(); return !!(s.ownerEmail && s.spreadsheetId); });
   const [unlocked, setUnlocked] = useState(false);
   const [adminGate, setAdminGate] = useState<'closed' | 'verify' | 'open'>('closed');
   const [adminSeccion, setAdminSeccion] = useState<string | null>(null);
@@ -58,9 +60,10 @@ export function App() {
   const reload = () => setSettings(loadSettings());
 
   // Bloqueo: al salir de la app más de 2 minutos, o tras 5 minutos sin tocar nada con la app abierta.
-  // Al bloquear se olvida el token de Google de la memoria y se oculta el contenido (pantalla de privacidad).
+  // Al bloquear se cierra la bóveda y se oculta el contenido (pantalla de privacidad). El permiso de Google
+  // (solo memoria, máx. 1 hora, solo para la hoja elegida) se conserva para no volver a pedirlo en cada apertura.
   useEffect(() => {
-    const bloquear = () => { setUnlocked(false); setAdminGate('closed'); olvidarToken(); };
+    const bloquear = () => { setUnlocked(false); setAdminGate('closed'); };
     let ultimaActividad = Date.now();
     const actividad = () => { ultimaActividad = Date.now(); };
     const onVis = () => {
@@ -104,7 +107,7 @@ export function App() {
         <button className="btn" onClick={async () => {
           setError(null);
           try {
-            await signIn(GOOGLE_CLIENT_ID);
+            await signIn(GOOGLE_CLIENT_ID, loadSettings().ownerEmail);
             const mail = await getEmail(GOOGLE_CLIENT_ID);
             const owner = loadSettings().ownerEmail;
             if (!mail) throw new Error('No se pudo confirmar tu cuenta de Google.');
@@ -133,7 +136,6 @@ export function App() {
       adminSeccion={adminSeccion}
       onOpenAdmin={(sec?: string) => { setAdminSeccion(sec ?? null); setAdminGate('verify'); }}
       onCloseAdmin={() => setAdminGate('closed')}
-      onAuthExpired={() => setSignedIn(false)}
       onSignOut={async () => { await signOut(); setSignedIn(false); setAdminGate('closed'); }}
       onChangeSheet={async () => { await resetStore(); saveSettings({ spreadsheetId: undefined, spreadsheetTitle: undefined, schemaOk: undefined }); setAdminGate('closed'); reload(); }}
       onWipe={async () => { await signOut(); await resetStore(); await localDb.delete(); cerrarVault(); clearSettings(); try { localStorage.clear(); } catch { /* nada */ } location.reload(); }}
@@ -143,7 +145,7 @@ export function App() {
 
 /** App ya conectada: módulo usuario + módulo administrador. */
 function Main(p: {
-  spreadsheetId: string; adminOpen: boolean; adminSeccion: string | null; onOpenAdmin: (seccion?: string) => void; onCloseAdmin: () => void; onAuthExpired: () => void;
+  spreadsheetId: string; adminOpen: boolean; adminSeccion: string | null; onOpenAdmin: (seccion?: string) => void; onCloseAdmin: () => void;
   onSignOut: () => void; onChangeSheet: () => void; onWipe: () => void;
 }) {
   const store = useStore();
@@ -168,20 +170,41 @@ function Main(p: {
           if (r.ok) saveSettings({ schemaOk: p.spreadsheetId, spreadsheetTitle: r.title });
           else setSchemaMsg(`La hoja «${r.title}» no tiene la estructura esperada. ${r.missingSheets.length ? `Faltan pestañas: ${r.missingSheets.join(', ')}.` : ''} ${r.missingColumns.map((m) => `En ${m.sheet} faltan: ${m.columns.join(', ')}.`).join(' ')}`);
         } catch (e) {
-          if (e instanceof DataError && e.kind === 'auth') { p.onAuthExpired(); return; }
+          if (e instanceof DataError && e.kind === 'auth') setConectar(true); // se pide con el aviso, sin bloquear la app
         }
       }
       await sync();
     })();
-    const onOnline = () => void sync();
-    const onVis = () => document.visibilityState === 'visible' && void sync();
+    // Sincronización automática; si Google necesita tu toque, se espera al botón del aviso.
+    const auto = () => { if (getState().authExpired && !hasToken()) return; void sync(); };
+    const onOnline = auto;
+    const onVis = () => document.visibilityState === 'visible' && auto();
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVis);
-    const id = setInterval(() => void sync(), 120_000);
+    const id = setInterval(auto, 120_000);
     return () => { vivo = false; window.removeEventListener('online', onOnline); document.removeEventListener('visibilitychange', onVis); clearInterval(id); };
   }, [db]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { if (store.authExpired) p.onAuthExpired(); }, [store.authExpired]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [conectar, setConectar] = useState(false);
+  const [conectando, setConectando] = useState(false);
+  const pideGoogle = conectar || store.authExpired;
+  // Reconectar con Google: un toque (gesto del usuario), sin elegir cuenta ni volver a dar permisos.
+  const reconectar = async () => {
+    setConectando(true);
+    try {
+      await signIn(GOOGLE_CLIENT_ID, loadSettings().ownerEmail);
+      const mail = await getEmail(GOOGLE_CLIENT_ID);
+      const owner = loadSettings().ownerEmail;
+      if (!mail || (owner && owner.toLowerCase() !== mail.toLowerCase())) {
+        await signOut();
+        throw new Error('Esa no es la cuenta de Google vinculada a esta app.');
+      }
+      setConectar(false);
+      await sync();
+    } catch (e) {
+      toast((e as Error).message);
+    } finally { setConectando(false); }
+  };
 
   // Versión del esquema en cada sincronización.
   const version = (store.tables.CONFIG ?? []).find((r) => r.CLAVE === 'VERSION_ESQUEMA')?.VALOR;
@@ -207,7 +230,7 @@ function Main(p: {
       <main className="screen" aria-busy="true">
         <h1>Cargando tus datos…</h1>
         <p className="muted">{store.error ?? 'La primera vez puede tardar unos segundos. Luego funcionará también sin internet.'}</p>
-        {store.error ? <button className="btn" onClick={() => void sync()}>Reintentar</button> : (
+        {pideGoogle ? <button className="btn" disabled={conectando} onClick={() => void reconectar()}>Conectar con Google</button> : store.error ? <button className="btn" onClick={() => void sync()}>Reintentar</button> : (
           <><div className="skeleton hero-sk" /><div className="kpis"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div><div className="skeleton chart-sk" /></>
         )}
       </main>
@@ -216,6 +239,12 @@ function Main(p: {
 
   return (
     <>
+      {pideGoogle && (
+        <div className="screen banner"><div className="msg conectar">
+          <span>Tus datos están al día en este dispositivo. Toca para sincronizar con Google.</span>
+          <button className="btn small" disabled={conectando} onClick={() => void reconectar()}>{conectando ? 'Conectando…' : 'Conectar'}</button>
+        </div></div>
+      )}
       {(schemaMsg || versionMal) && (
         <div className="screen banner"><div className="msg error">{schemaMsg ?? `La hoja tiene la versión de esquema ${version}; esta app espera la ${SCHEMA_VERSION}. No modifiques la hoja hasta actualizar la app.`}</div></div>
       )}

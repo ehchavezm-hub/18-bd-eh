@@ -50,3 +50,5 @@ La información financiera del propietario es confidencial. Este documento fija 
 | Robo de la cuenta de Google | Verificación en dos pasos (responsabilidad del propietario) |
 | Código malicioso en una dependencia | Versiones fijas, `npm ci`, pocas dependencias, Dependabot |
 | El repositorio es público | No contiene nada sensible; puede hacerse privado (GitHub Pages en repos privados requiere plan de pago) |
+| PIN adivinado por prueba y error | Tras 5 fallos la app espera 30 s, y la espera se duplica con cada fallo (máx. 1 h) |
+| Dependencias de desarrollo | `npm audit`: 0 fallas en lo que se publica. Quedan 2 avisos moderados en glob/minimatch, usados solo al construir (workbox-build); se actualizarán cuando la librería lo permita |

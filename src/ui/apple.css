@@ -1,0 +1,185 @@
+/* =====================================================================
+   Capa de diseño estilo Apple (skill apple-design).
+   Colores del sistema de iOS/macOS, tipografía del sistema con tracking
+   según tamaño, listas agrupadas, materiales translúcidos y hojas modales.
+   ===================================================================== */
+:root {
+  /* Colores del sistema (claro) */
+  --bg: #f2f2f7;               /* systemGroupedBackground */
+  --surface: #ffffff;          /* secondarySystemGroupedBackground */
+  --text: #000000;             /* label */
+  --muted: rgba(60, 60, 67, 0.6); /* secondaryLabel */
+  --tertiary: rgba(60, 60, 67, 0.3);
+  --border: rgba(60, 60, 67, 0.18); /* separator */
+  --fill: rgba(118, 118, 128, 0.12); /* tertiarySystemFill */
+  --primary: #007aff;          /* systemBlue (tinte) */
+  --primary-text: #ffffff;
+  --accent: #007aff;
+  --ok: #34c759; --warn: #ff9500; --error: #ff3b30;
+  --income: #248a3d;
+  --brand-1: #0a3d91; --brand-2: #007aff;
+  --radius: 16px;
+  --sheet-ease: cubic-bezier(0.32, 0.72, 0, 1); /* curva de las hojas de iOS */
+  --material: rgba(249, 249, 249, 0.78);
+  --material-border: rgba(0, 0, 0, 0.12);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', system-ui, Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --text: #ffffff;
+    --muted: rgba(235, 235, 245, 0.6);
+    --tertiary: rgba(235, 235, 245, 0.3);
+    --border: rgba(84, 84, 88, 0.6);
+    --fill: rgba(118, 118, 128, 0.24);
+    --primary: #0a84ff; --accent: #0a84ff; --primary-text: #ffffff;
+    --ok: #30d158; --warn: #ff9f0a; --error: #ff453a;
+    --income: #30d158;
+    --brand-1: #0a2a66; --brand-2: #0a84ff;
+    --material: rgba(30, 30, 30, 0.72);
+    --material-border: rgba(255, 255, 255, 0.1);
+    --grid: rgba(84, 84, 88, 0.45);
+  }
+}
+
+/* ---------- Tipografía: sistema, tamaños de iOS, tracking según tamaño ---------- */
+body { background: var(--bg); font-size: 17px; line-height: 1.35; letter-spacing: -0.01em; -webkit-font-smoothing: antialiased; }
+h1 { font-size: 2.125rem; line-height: 1.12; font-weight: 700; letter-spacing: -0.025em; color: var(--text); } /* Large Title 34 */
+h2 { font-size: 1.25rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; }   /* Title 3 */
+.muted { color: var(--muted); font-size: 0.94rem; letter-spacing: -0.005em; }
+.small { font-size: 0.8rem; letter-spacing: 0; }
+.field-label { font-size: 0.8rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.02em; color: var(--muted); }
+.hero-num, .kpi strong, .amount, .mov-amount { font-family: ui-rounded, -apple-system, 'SF Pro Rounded', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* ---------- Superficies: listas agrupadas (inset grouped) ---------- */
+.card { background: var(--surface); border: 0; border-radius: var(--radius); box-shadow: none; }
+@media (prefers-color-scheme: light) { .card { box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.04); } }
+ul.plain li { border-bottom: 0; position: relative; }
+ul.plain li + li::before { content: ''; position: absolute; top: 0; left: 48px; right: 0; height: 0.5px; background: var(--border); }
+.barlist li + li::before { display: none; }
+.day { border-left: 0; }
+.day h3 { text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.03em; color: var(--muted); font-weight: 500; margin: 0 0 2px 4px; }
+.mov { padding: 10px 4px; }
+.mov:active, .step:active:not(:disabled), .acct-main:active, .barlist-item:active:not(:disabled) { background: var(--fill); opacity: 1; }
+.mov-desc { font-weight: 400; }
+.avatar { border: 0; border-radius: 10px; width: 34px; height: 34px; background: var(--c); color: #fff; font-size: 1rem; }
+.avatar.sm { border-radius: 7px; width: 26px; height: 26px; background: var(--c); color: #fff; }
+
+/* ---------- Controles ---------- */
+.btn { border-radius: 12px; min-height: 50px; font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; background: var(--primary); }
+.btn.secondary { background: var(--fill); color: var(--primary); border: 0; }
+.btn.secondary.danger, .btn.danger { color: var(--error); background: var(--fill); border: 0; }
+.btn.link { background: none; color: var(--primary); font-weight: 400; min-height: 44px; }
+.btn.small { min-height: 34px; border-radius: 999px; font-size: 0.94rem; padding: 6px 14px; }
+input, select, input[type='date'], input[type='time'], input[type='search'] {
+  background: var(--fill); border: 0; border-radius: 10px; min-height: 44px; font-size: 17px; color: var(--text);
+}
+input:focus-visible, select:focus-visible { outline: 2px solid var(--primary); outline-offset: 0; }
+input[type='search'] { padding-left: 34px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: 11px center; }
+.amount { font-size: 2.4rem; font-weight: 700; background: transparent; text-align: center; letter-spacing: -0.02em; min-height: 64px; }
+.amount:focus-visible { outline: none; }
+.chip { background: var(--fill); border: 0; border-radius: 999px; color: var(--text); padding: 7px 14px; font-size: 0.94rem; }
+.chip.on { background: var(--primary); color: #fff; }
+/* Control segmentado de iOS: pista gris, "pulgar" blanco con sombra */
+.segmented { background: var(--fill); border: 0; border-radius: 9px; padding: 2px; gap: 0; }
+.segmented button { color: var(--text); font-weight: 500; font-size: 0.875rem; min-height: 32px; border-radius: 7px; transition: background-color 200ms var(--sheet-ease), box-shadow 200ms var(--sheet-ease); }
+.segmented button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .segmented button.on { background: #636366; } }
+.badge { border-radius: 999px; font-weight: 600; font-size: 0.75rem; padding: 3px 9px; }
+.msg { border-radius: 12px; }
+
+/* ---------- Barra de pestañas: material translúcido, el contenido pasa por debajo ---------- */
+.tabbar {
+  background: var(--material); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--material-border);
+}
+.tabbar button { color: #8e8e93; font-size: 0.66rem; font-weight: 500; letter-spacing: 0.01em; gap: 3px; }
+.tabbar button[aria-current='page'] { color: var(--primary); font-weight: 600; }
+@media (max-width: 899px) {
+  .tabbar button[aria-current='page'] .ico { background: none; padding: 0; width: 24px; }
+  .tabbar .tab-add .ico { background: var(--primary); color: #fff; border-radius: 50%; width: 34px; height: 34px; padding: 6px; box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 40%, transparent); }
+}
+
+/* ---------- Barra lateral (computadora): material tipo macOS ---------- */
+@media (min-width: 900px) {
+  .tabbar { background: var(--material); border-right: 0.5px solid var(--material-border); border-top: 0; }
+  .brand { color: var(--text); }
+  .tabbar button { color: var(--text); font-size: 0.875rem; font-weight: 500; min-height: 34px; border-radius: 8px; }
+  .tabbar button .ico { color: var(--primary); }
+  .tabbar button[aria-current='page'] { background: var(--fill); color: var(--text); }
+  .tabbar .tab-add .ico { background: var(--primary); color: #fff; border-radius: 6px; }
+  @media (hover: hover) and (pointer: fine) { .tabbar button:hover { background: color-mix(in srgb, var(--fill) 60%, transparent); color: var(--text); } }
+}
+
+/* ---------- Botón de configuración: material ---------- */
+.gear { background: var(--material); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border: 0.5px solid var(--material-border); color: var(--primary); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08); }
+
+/* ---------- Hojas modales de iOS: tirador, curva de Apple, fondo atenuado ---------- */
+.sheet-backdrop { background: rgba(0, 0, 0, 0.4); animation: fade-in 300ms var(--sheet-ease); }
+.sheet { background: var(--bg); border-radius: 14px 14px 0 0; animation: sheet-up 420ms var(--sheet-ease); box-shadow: 0 -2px 30px rgba(0, 0, 0, 0.15); }
+.sheet::before { content: ''; display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--tertiary); margin: 6px auto 0; }
+.sheet-head { padding: 8px 16px 4px; }
+.sheet-head h2 { font-size: 1.0625rem; font-weight: 600; }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (min-width: 900px) {
+  .sheet { border-radius: 14px; animation: sheet-pop 320ms var(--sheet-ease); box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3); }
+  .sheet::before { display: none; }
+  @keyframes sheet-pop { from { transform: scale(0.96); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+
+/* ---------- Aviso tipo HUD (material) ---------- */
+.toast {
+  background: var(--material); color: var(--text); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+  border: 0.5px solid var(--material-border); border-radius: 999px; padding: 11px 18px; font-weight: 600; font-size: 0.94rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); top: calc(env(safe-area-inset-top) + 12px); bottom: auto;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -12px) scale(0.96); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+
+/* ---------- Inicio: tarjeta tipo Wallet y métricas ---------- */
+.hero { background: linear-gradient(140deg, #0a84ff 0%, #0a5ad6 45%, #3a2fb3 100%); border-radius: 22px; box-shadow: 0 10px 30px rgba(10, 90, 214, 0.28); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .hero { background: linear-gradient(140deg, #0a4fb8 0%, #11307a 55%, #2a1f78 100%); box-shadow: none; } }
+.hero-num { font-weight: 700; letter-spacing: -0.03em; }
+.kpi { border-top: 0; padding: 14px 16px; gap: 4px; }
+.kpi > span:first-child { font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.kpi > span:first-child::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--k, var(--primary)); }
+.kpis .kpi:nth-child(1) { --k: #ff9500; } .kpis .kpi:nth-child(2) { --k: #34c759; } .kpis .kpi:nth-child(3) { --k: #af52de; } .kpis .kpi:nth-child(4) { --k: #007aff; }
+.kpi strong { font-size: clamp(1.15rem, 4.6vw, 1.45rem); font-weight: 700; letter-spacing: -0.02em; }
+.onboarding { border: 0; }
+.progress { height: 4px; }
+.progress span { background: var(--primary); }
+.step.done .step-check { background: var(--ok); border-color: var(--ok); }
+.fourier { border-radius: 22px; }
+
+/* ---------- Gráficos ---------- */
+.viz-root h2 { font-size: 1.0625rem; }
+.axis { fill: var(--muted); font-size: 10.5px; }
+.tooltip { background: var(--material); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border: 0.5px solid var(--material-border); border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15); }
+.barlist-bar { border-radius: 0 5px 5px 0; }
+.barlist-track { height: 8px; }
+
+/* ---------- Accesibilidad de materiales y contraste ---------- */
+@media (prefers-reduced-transparency: reduce) {
+  .tabbar, .gear, .toast, .tooltip { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .card { border: 1px solid var(--text); }
+  .tabbar, .toast, .tooltip { background: var(--surface); border-color: var(--text); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .sheet-backdrop { animation: fade-in 150ms ease; }
+}
+/* La tarjeta de Fourier mantiene su fondo oscuro propio */
+.card.fourier { background: radial-gradient(120% 140% at 0% 0%, #1d4f9e 0%, #0e2147 50%, #050b18 100%); color: #fff; }
+/* Encabezado de Inicio: título grande en una línea, acciones compactas */
+.screen > .row:first-child h1 { font-size: clamp(1.75rem, 8.5vw, 2.125rem); white-space: nowrap; }
+.head-actions { flex: none; gap: 4px; }
+.head-actions .badge { white-space: nowrap; }
+/* Filtros como píldoras en una fila deslizable (teléfono) */
+@media (max-width: 599px) {
+  .filters { display: flex; overflow-x: auto; gap: 8px; margin: 0 -16px; padding: 2px 16px; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x; }
+  .filters::-webkit-scrollbar { display: none; }
+  .filters select { flex: none; width: auto; min-height: 36px; border-radius: 999px; padding: 6px 30px 6px 14px; font-size: 16px; font-weight: 500;
+    -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23007aff' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+}

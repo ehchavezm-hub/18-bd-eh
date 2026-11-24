@@ -64,6 +64,9 @@ const ES_IOS = typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(naviga
 
 export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onUnlock: () => void; onCancel?: () => void }) {
   const hasBio = !!loadSettings().webauthnCredentialId;
+  // Face ID solo se usa si de verdad abre la app: con la llave biométrica guardada (PRF) o con la app aún abierta.
+  // Si no, pedir Face ID y luego el PIN serían pasos de más: se va directo al PIN.
+  const bioUtil = hasBio && (vaultAbierto() || tieneEnvolturaBiometrica());
   const [pin, setPinValue] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -77,9 +80,7 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
     if (vaultAbierto()) return onUnlock(); // la app sigue abierta: la clave ya está en memoria
     if (r.prf && (await abrirConPrf(r.prf))) return onUnlock();
     setPrfPendiente(r.prf);
-    setAviso(r.prf
-      ? 'Escribe tu PIN una vez. Desde la próxima vez bastará Face ID / huella.'
-      : 'Este dispositivo no permite abrir los datos cifrados solo con biometría. Escribe tu PIN al abrir la app; mientras siga abierta, bastará Face ID / huella.');
+    setAviso(r.prf ? 'Escribe tu PIN una vez. Desde la próxima vez bastará Face ID.' : 'Escribe tu PIN.');
   }
   async function tryPin() {
     if (esperaPin() > 0) { setError(`Demasiados intentos. Espera ${esperaPin()} segundos.`); return; }
@@ -101,8 +102,8 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
 
   // Face ID se pide solo al abrir. En iPhone, iOS siempre muestra antes su hoja "Usar llave de acceso"
   // (confirmación obligatoria de Apple para la web); el botón queda de respaldo si la cierras.
-  useEffect(() => { if (hasBio) void tryBio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [verPin, setVerPin] = useState(!hasBio);
+  useEffect(() => { if (bioUtil) void tryBio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [verPin, setVerPin] = useState(!bioUtil);
   const mostrarPin = verPin || !!aviso;
 
   if (ofrecerBio) {
@@ -120,7 +121,7 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
   return (
     <main className="screen center">
       <h1>{title}</h1>
-      {hasBio && !aviso && (
+      {bioUtil && !aviso && (
         <button className="btn faceid-btn" onClick={tryBio}>
           <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 9v1M15 9v1M12 9v4h-1M9 16c1.6 1.2 4.4 1.2 6 0" /></svg>
           {ES_IOS ? 'Entrar con Face ID' : 'Entrar con Face ID / huella / Windows Hello'}
@@ -129,7 +130,7 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
       {aviso && <div className="msg warn">{aviso}</div>}
       {!mostrarPin && <button className="btn link" onClick={() => setVerPin(true)}>Usar PIN</button>}
       {mostrarPin && <div className="card stack">
-        <input className="pin" type="password" inputMode="numeric" maxLength={6} placeholder="PIN" value={pin} autoComplete="current-password"
+        <input className="pin" type="password" inputMode="numeric" maxLength={6} placeholder="PIN" value={pin} autoComplete="current-password" autoFocus
           onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && isValidPin(pin) && void tryPin()} />
         <button className="btn secondary" disabled={!isValidPin(pin)} onClick={tryPin}>Entrar con PIN</button>
       </div>}

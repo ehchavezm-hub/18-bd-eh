@@ -136,7 +136,7 @@ export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe, seccionI
       </section>
       <section className="card stack">
         <h2>Este dispositivo</h2>
-        <p className="muted">Bloqueo: {st.webauthnCredentialId ? (tieneEnvolturaBiometrica() ? 'Face ID / huella abre la app sin PIN (PIN de respaldo)' : 'Face ID / huella + PIN al abrir (este dispositivo no permite abrir los datos solo con Face ID)') : 'Solo PIN'}</p>
+        <p className="muted">Bloqueo: {st.webauthnCredentialId ? (tieneEnvolturaBiometrica() ? 'Face ID / huella abre la app sin PIN (PIN de respaldo)' : 'Al abrir la app: PIN (este dispositivo no entrega a la web la llave de Face ID). Al volver a la app abierta: Face ID') : 'Solo PIN'}</p>
         {(!st.webauthnCredentialId || !tieneEnvolturaBiometrica()) && (
           <button className="btn" onClick={async () => {
             try {

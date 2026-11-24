@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useData } from '../../data/useData';
 import { useStore } from '../../data/store';
 import { calcularSaldos, totales } from '../../domain/balances';
-import { acumuladoDiario, resumenMes } from '../../domain/reports';
+import { acumuladoDiario, resumenMes, ultimoMesConDatos } from '../../domain/reports';
 import { porAtender } from '../../domain/recurring';
 import { addMonths, dayLabel, daysInMonth, monthKey, monthLong, todayIso } from '../../domain/dates';
 import { dinero } from '../../domain/format';
@@ -12,7 +12,7 @@ import type { Prefill } from '../anotar/MovementForm';
 import type { Ocurrencia } from '../../domain/recurring';
 
 /** D1 · Inicio: ¿cómo voy hoy? */
-export function HomeScreen({ onPagar, onVerPagos, onVerCuentas }: { onPagar: (p: Prefill) => void; onVerPagos: () => void; onVerCuentas: () => void }) {
+export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards }: { onPagar: (p: Prefill) => void; onVerPagos: () => void; onVerCuentas: () => void; onVerDashboards: () => void }) {
   const d = useData();
   const hoy = todayIso();
   const mes = monthKey(hoy);
@@ -27,7 +27,7 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas }: { onPagar: (p:
     const acumAct = acumuladoDiario(d.movs, mes, dia);
     const acumAnt = acumuladoDiario(d.movs, anterior, daysInMonth(anterior));
     const antHastaHoy = acumAnt[Math.min(dia, acumAnt.length) - 1] ?? 0;
-    return { t, sinSaldoInicial, actual, acumAct, acumAnt, antHastaHoy, pagos: porAtender(d.recurrentes, d.movs, hoy) };
+    return { t, sinSaldoInicial, actual, acumAct, acumAnt, antHastaHoy, pagos: porAtender(d.recurrentes, d.movs, hoy), ultimo: ultimoMesConDatos(d.movs) };
   }, [d, mes, anterior, dia, hoy]);
 
   const delta = v.antHastaHoy > 0 ? (v.actual.egresos - v.antHastaHoy) / v.antHastaHoy : null;
@@ -45,6 +45,13 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas }: { onPagar: (p:
         )}
         {v.sinSaldoInicial > 0 && <Status kind="warn">{v.sinSaldoInicial === 1 ? '1 cuenta sin saldo inicial' : `${v.sinSaldoInicial} cuentas sin saldo inicial`}: el disponible es aproximado</Status>}
       </section>
+
+      {v.ultimo && v.ultimo < mes && (
+        <section className="card stack">
+          <Status kind="info">Aún no registras movimientos en {monthLong(mes)}. Tu último mes con datos es {monthLong(v.ultimo)}.</Status>
+          <button className="btn secondary" onClick={onVerDashboards}>Ver dashboards de tu historial</button>
+        </section>
+      )}
 
       <div className="kpis">
         <div className="card kpi">

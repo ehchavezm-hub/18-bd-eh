@@ -212,3 +212,112 @@ export function Meter({ value, max, label }: { value: number; max: number; label
     </div>
   );
 }
+
+/** Columnas de una serie (con línea opcional de promedio móvil). Un eje. */
+export function ColumnChart({ etiquetas, valores, promedio, format, etiquetaCada = 1, resaltar }: {
+  etiquetas: string[]; valores: number[]; promedio?: number[]; format: (v: number) => string; etiquetaCada?: number; resaltar?: number | null;
+}) {
+  const [ref, w] = useWidth<HTMLDivElement>();
+  const [hover, setHover] = useState<number | null>(null);
+  const h = 190, pl = 44, pr = 8, pt = 10, pb = 26;
+  const max = Math.max(1, ...valores, ...(promedio ?? []));
+  const slot = (w - pl - pr) / Math.max(1, valores.length);
+  const bw = Math.max(2, Math.min(28, slot - Math.max(2, slot * 0.25)));
+  const y = (v: number) => pt + (1 - v / max) * (h - pt - pb);
+  const cx = (i: number) => pl + i * slot + slot / 2;
+  return (
+    <div ref={ref} className="chart" onPointerLeave={() => setHover(null)}>
+      <svg width={w} height={h} role="img" aria-label="Gráfico de columnas">
+        {[0, max / 2, max].map((t) => (
+          <g key={t}><line x1={pl} x2={w - pr} y1={y(t)} y2={y(t)} className="grid" /><text x={pl - 6} y={y(t) + 4} className="axis" textAnchor="end">{compacto(t)}</text></g>
+        ))}
+        {valores.map((v, i) => {
+          const top = y(v), bottom = h - pb, hh = Math.max(0, bottom - top), r = Math.min(4, hh, bw / 2), x = cx(i) - bw / 2;
+          return (
+            <g key={i} onPointerEnter={() => setHover(i)} onPointerDown={() => setHover(i)}>
+              <rect x={pl + i * slot} y={pt} width={slot} height={h - pt - pb} className={hover === i ? 'hover-band' : 'hit'} />
+              {hh > 0 && <path className={`bar ${resaltar === i ? 'series-2' : 'series-1'}`} d={`M${x},${bottom}V${top + r}q0,-${r} ${r},-${r}h${bw - 2 * r}q${r},0 ${r},${r}V${bottom}Z`} />}
+              {i % etiquetaCada === 0 && <text x={cx(i)} y={h - 8} className="axis" textAnchor="middle">{etiquetas[i]}</text>}
+            </g>
+          );
+        })}
+        {promedio && <path className="line muted-series" d={promedio.map((v, i) => `${i ? 'L' : 'M'}${cx(i).toFixed(1)},${y(v).toFixed(1)}`).join('')} />}
+      </svg>
+      {hover !== null && (
+        <div className="tooltip" style={{ left: Math.min(w - 160, Math.max(0, cx(hover) - 70)) }}>
+          <strong>{etiquetas[hover]}</strong>
+          <div><i className="swatch series-1" />{format(valores[hover])}</div>
+          {promedio && <div><i className="swatch muted-series" />Promedio: {format(promedio[hover])}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Columnas apiladas (partes de un total por periodo), con 2px de separación entre partes. */
+export function StackedColumns({ etiquetas, series, format }: {
+  etiquetas: string[]; series: { label: string; className: string; valores: number[] }[]; format: (v: number) => string;
+}) {
+  const [ref, w] = useWidth<HTMLDivElement>();
+  const [hover, setHover] = useState<number | null>(null);
+  const h = 200, pl = 44, pr = 8, pt = 10, pb = 26;
+  const tot = etiquetas.map((_, i) => series.reduce((s, se) => s + (se.valores[i] ?? 0), 0));
+  const max = Math.max(1, ...tot);
+  const slot = (w - pl - pr) / Math.max(1, etiquetas.length);
+  const bw = Math.max(4, Math.min(30, slot * 0.7));
+  const y = (v: number) => pt + (1 - v / max) * (h - pt - pb);
+  return (
+    <div ref={ref} className="chart" onPointerLeave={() => setHover(null)}>
+      <svg width={w} height={h} role="img" aria-label="Columnas apiladas">
+        {[0, max / 2, max].map((t) => (
+          <g key={t}><line x1={pl} x2={w - pr} y1={y(t)} y2={y(t)} className="grid" /><text x={pl - 6} y={y(t) + 4} className="axis" textAnchor="end">{compacto(t)}</text></g>
+        ))}
+        {etiquetas.map((e, i) => {
+          let acc = 0;
+          const x = pl + i * slot + (slot - bw) / 2;
+          return (
+            <g key={e} onPointerEnter={() => setHover(i)} onPointerDown={() => setHover(i)}>
+              <rect x={pl + i * slot} y={pt} width={slot} height={h - pt - pb} className={hover === i ? 'hover-band' : 'hit'} />
+              {series.map((se) => {
+                const v = se.valores[i] ?? 0; if (v <= 0) return null;
+                const y1 = y(acc + v), y0 = y(acc); acc += v;
+                return <rect key={se.label} x={x} y={y1} width={bw} height={Math.max(0, y0 - y1 - 2)} rx={2} className={`bar ${se.className}`} />;
+              })}
+              <text x={pl + i * slot + slot / 2} y={h - 8} className="axis" textAnchor="middle">{e}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {hover !== null && (
+        <div className="tooltip" style={{ left: Math.min(w - 180, Math.max(0, pl + hover * slot - 60)) }}>
+          <strong>{etiquetas[hover]} · {format(tot[hover])}</strong>
+          {series.map((se) => <div key={se.label}><i className={`swatch ${se.className}`} />{se.label}: {format(se.valores[hover] ?? 0)}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Minigráficos (uno por categoría) con la misma escala de tiempo: para ver la tendencia de cada una. */
+export function Sparks({ filas, etiquetas, format }: { filas: { nombre: string; valores: number[] }[]; etiquetas: string[]; format: (v: number) => string }) {
+  return (
+    <div className="sparks">
+      {filas.map((f) => {
+        const max = Math.max(1, ...f.valores);
+        const w = 120, h = 36;
+        const pts = f.valores.map((v, i) => `${(i / Math.max(1, f.valores.length - 1)) * w},${h - (v / max) * (h - 4) - 2}`).join(' ');
+        const ultimo = f.valores[f.valores.length - 1] ?? 0;
+        const prom = f.valores.reduce((a, b) => a + b, 0) / Math.max(1, f.valores.length);
+        return (
+          <div key={f.nombre} className="spark" title={`${f.nombre}: ${etiquetas.map((e, i) => `${e} ${format(f.valores[i])}`).join(' · ')}`}>
+            <div className="spark-head"><span>{f.nombre}</span><strong>{format(ultimo)}</strong></div>
+            <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} preserveAspectRatio="none" aria-hidden="true">
+              <polyline points={pts} className="line series-1" vectorEffect="non-scaling-stroke" />
+            </svg>
+            <span className="muted small">Promedio {format(prom)} · último {etiquetas[etiquetas.length - 1]}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

@@ -114,7 +114,7 @@ describe('reportes', () => {
     expect(acumuladoDiario(movs, '2026-11', 4)).toEqual([0, 100, 150, 150]);
   });
   it('reparte 50/30/20', () => {
-    const cats = new Map([['A', { id: 'A', nombre: 'A', tipo: 'EGRESO', padreId: 'G', clase: 'CONSUMO', tipo503020: 'NECESIDAD', activa: true, orden: 1, color: null, icono: null }]]);
+    const cats = new Map([['A', { id: 'A', nombre: 'A', tipo: 'EGRESO', padreId: 'G', clase: 'CONSUMO', tipo503020: 'NECESIDAD', activa: true, orden: 1, color: null, icono: null, fijoVariable: null }]]);
     expect(regla503020(movs, '2026-11', cats)).toMatchObject({ NECESIDAD: 100, 'SIN CLASIFICAR': 50 });
   });
 });
@@ -126,5 +126,14 @@ describe('montos', () => {
     expect(parseMonto('12,5')).toBe(12.5);
     expect(parseMonto('abc')).toBeNull();
     expect(dinero(-1234.5)).toBe('−S/ 1,234.50');
+  });
+});
+
+import { ultimoMesConDatos, resumenPorAnio } from '../domain/reports';
+describe('historial', () => {
+  it('encuentra el último mes con datos y resume por año', () => {
+    const ms = [mov({ FECHA: '2025-08-22', MONTO: 10 }), mov({ FECHA: '2024-03-01', MONTO: 5 }), mov({ TIPO: 'INGRESO', FECHA: '2024-03-02', MONTO: 100 })];
+    expect(ultimoMesConDatos(ms)).toBe('2025-08');
+    expect(resumenPorAnio(ms)).toEqual([{ anio: '2024', ingresos: 100, egresos: 5, meses: 1 }, { anio: '2025', ingresos: 0, egresos: 10, meses: 1 }]);
   });
 });

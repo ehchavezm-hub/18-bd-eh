@@ -38,7 +38,7 @@ const TABS: { id: Tab; label: string; desktopOnly?: boolean }[] = [
   { id: 'movimientos', label: 'Movimientos' },
   { id: 'anotar', label: 'Anotar' },
   { id: 'cuentas', label: 'Cuentas' },
-  { id: 'reportes', label: 'Reportes' },
+  { id: 'reportes', label: 'Dashboards' },
   { id: 'pagos', label: 'Pagos fijos', desktopOnly: true },
 ];
 const Icon = ({ d }: { d: string }) => (
@@ -199,7 +199,7 @@ function Main(p: {
       {(schemaMsg || versionMal) && (
         <div className="screen banner"><div className="msg error">{schemaMsg ?? `La hoja tiene la versión de esquema ${version}; esta app espera la ${SCHEMA_VERSION}. No modifiques la hoja hasta actualizar la app.`}</div></div>
       )}
-      {tab === 'inicio' && <HomeScreen onPagar={(pf) => setForm({ prefill: pf })} onVerPagos={() => setTab('pagos')} onVerCuentas={() => setTab('cuentas')} />}
+      {tab === 'inicio' && <HomeScreen onPagar={(pf) => setForm({ prefill: pf })} onVerPagos={() => setTab('pagos')} onVerCuentas={() => setTab('cuentas')} onVerDashboards={() => setTab('reportes')} />}
       {tab === 'movimientos' && <MovementsScreen key={filtro.key} filtroInicial={filtro} onAbrir={(m) => setForm({ editar: m })} />}
       {tab === 'cuentas' && <AccountsScreen onVerMovimientos={(cuentaId) => abrirMovs({ cuentaId })} />}
       {tab === 'reportes' && <ReportsScreen onVerMovimientos={abrirMovs} />}

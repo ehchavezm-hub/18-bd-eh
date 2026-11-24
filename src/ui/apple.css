@@ -188,3 +188,4 @@ input[type='search'] { padding-left: 34px; background-image: url("data:image/svg
 .msg.conectar { display: flex; align-items: center; gap: 12px; justify-content: space-between;
   background: color-mix(in srgb, #0a84ff 12%, transparent); color: inherit; }
 .msg.conectar span { flex: 1; font-size: 0.9rem; }
+.faceid-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; font-size: 1.08rem; width: min(100%, 360px); }

@@ -60,6 +60,8 @@ export async function activarBiometria(): Promise<'prf' | 'solo-desbloqueo'> {
  * Desbloqueo: Face ID / huella / Windows Hello primero, PIN como respaldo.
  * Además de desbloquear, abre la bóveda (clave para leer los datos cifrados del dispositivo).
  */
+const ES_IOS = typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
 export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onUnlock: () => void; onCancel?: () => void }) {
   const hasBio = !!loadSettings().webauthnCredentialId;
   const [pin, setPinValue] = useState('');
@@ -71,7 +73,7 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
   async function tryBio() {
     setError(null);
     const r = await verifyBiometric();
-    if (!r.ok) { setError('No se reconoció. Intenta de nuevo o usa tu PIN.'); return; }
+    if (!r.ok) { setError('No se completó Face ID. Toca el botón otra vez o usa tu PIN.'); return; }
     if (vaultAbierto()) return onUnlock(); // la app sigue abierta: la clave ya está en memoria
     if (r.prf && (await abrirConPrf(r.prf))) return onUnlock();
     setPrfPendiente(r.prf);
@@ -97,7 +99,11 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
     try { await activarBiometria(); onUnlock(); } catch { setError('No se pudo activar Face ID. Puedes intentarlo luego en Configuración.'); }
   }
 
-  useEffect(() => { if (hasBio) void tryBio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // En iPhone/iPad, pedir Face ID sin que toques nada hace que iOS muestre primero la hoja
+  // "Iniciar sesión / Usar llave de acceso / Más opciones". Con un toque en el botón, Face ID aparece directo.
+  useEffect(() => { if (hasBio && !ES_IOS) void tryBio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [verPin, setVerPin] = useState(!hasBio);
+  const mostrarPin = verPin || !!aviso;
 
   if (ofrecerBio) {
     return (
@@ -114,13 +120,19 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
   return (
     <main className="screen center">
       <h1>{title}</h1>
-      {hasBio && !aviso && <button className="btn" onClick={tryBio}>Usar Face ID / huella / Windows Hello</button>}
+      {hasBio && !aviso && (
+        <button className="btn faceid-btn" onClick={tryBio}>
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 9v1M15 9v1M12 9v4h-1M9 16c1.6 1.2 4.4 1.2 6 0" /></svg>
+          {ES_IOS ? 'Entrar con Face ID' : 'Entrar con Face ID / huella / Windows Hello'}
+        </button>
+      )}
       {aviso && <div className="msg warn">{aviso}</div>}
-      <div className="card stack">
+      {!mostrarPin && <button className="btn link" onClick={() => setVerPin(true)}>Usar PIN</button>}
+      {mostrarPin && <div className="card stack">
         <input className="pin" type="password" inputMode="numeric" maxLength={6} placeholder="PIN" value={pin} autoComplete="current-password"
           onChange={(e) => setPinValue(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && isValidPin(pin) && void tryPin()} />
         <button className="btn secondary" disabled={!isValidPin(pin)} onClick={tryPin}>Entrar con PIN</button>
-      </div>
+      </div>}
       {error && <div className="msg error">{error}</div>}
       {onCancel && <button className="btn link" onClick={onCancel}>Cancelar</button>}
     </main>

@@ -6,6 +6,8 @@ export interface Settings {
   spreadsheetTitle?: string;
   /** Cuenta de Google vinculada a este teléfono. Otra cuenta no puede entrar. */
   ownerEmail?: string;
+  /** ID de la hoja cuya estructura ya se comprobó (evita repetir la comprobación). */
+  schemaOk?: string;
   lockMethod?: 'webauthn' | 'pin';
   webauthnCredentialId?: string;
   pinHash?: string;

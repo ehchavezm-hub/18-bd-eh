@@ -10,6 +10,8 @@ function fakeDb(data: Partial<Record<TableName, Row[]>>, sheets = Object.values(
     read: async (t) => data[t] ?? [],
     header: async (t) => REQUIRED_COLUMNS[t] ?? [],
     append: async () => {},
+    readMany: async (ts) => Object.fromEntries(ts.map((t) => [t, data[t] ?? []])),
+    update: async () => {},
   };
 }
 

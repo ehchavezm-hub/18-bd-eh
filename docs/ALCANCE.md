@@ -1,6 +1,6 @@
 # Alcance de la app · Finanzas personales
 
-**Estado:** aprobado · **Versión del documento:** 1.2 (dashboards; uso también en computadora) · **Esquema de BD:** v3
+**Estado:** aprobado · etapas 0 a 4 construidas · **Versión del documento:** 1.2 (dashboards; uso también en computadora) · **Esquema de BD:** v3
 
 ## 1. Objetivo
 
@@ -147,3 +147,14 @@ Se usan las skills que aportan a cada tarea. Las que no tienen relación con est
 | Datos | `smart-categorize`, `smart-split`, `import-transactions`, `month-end-close`, `subscription-audit`, `personal-finance-agent-skill` |
 | Calidad y seguridad | `security-review`, `code-review`, `requesting-code-review`, `verification-before-completion`, `break-ui`, `review-animations`, `skill-inspector` |
 | Cierre | `finishing-a-development-branch`, `humanizer` (textos de la app) |
+
+## 11. Estado de construcción
+
+| Etapa | Estado |
+|---|---|
+| 0. Base | ✅ Publicada y probada en iPhone y computadora |
+| 1. Anotar (F1, F2, F3, F10) | ✅ Construida: formulario rápido, sin internet con cola de envío, sugerencias por historial y reglas, configuración de bancos, cuentas, categorías, centros, lugares, pagos fijos y reglas |
+| 2. Saldos e historial (F6, F9, F11) | ✅ Construida: saldos por cuenta y moneda, "fijar saldo", historial con búsqueda y filtros, editar y anular con bitácora, tipo de cambio |
+| 3. Pagos fijos (F7) | ✅ Construida: lista semanal y mensual, pagar u omitir, aviso al abrir la app y número en el ícono. ⏳ Pendiente: avisos con la app cerrada (requiere Firebase) |
+| 4. Reportes y dashboards (F8, F13 D1–D5) | ✅ Construida |
+| 5. Foto y dividir (F4, F5) | ⏳ Pendiente |

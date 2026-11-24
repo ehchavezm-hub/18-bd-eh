@@ -137,3 +137,19 @@ describe('historial', () => {
     expect(resumenPorAnio(ms)).toEqual([{ anio: '2024', ingresos: 100, egresos: 5, meses: 1 }, { anio: '2025', ingresos: 0, egresos: 10, meses: 1 }]);
   });
 });
+
+import { ciclos, reconstruir } from '../ui/FourierCard';
+describe('serie de Fourier del gasto', () => {
+  it('con todos los ciclos reconstruye exactamente el gasto', () => {
+    const v = [1200, 900, 1500, 1100, 800, 2000, 1300, 950, 1700, 1250, 1000, 2400];
+    const { media, ciclos: cs } = ciclos(v);
+    v.forEach((x, i) => expect(reconstruir(media, cs, v.length, i)).toBeCloseTo(x, 6));
+  });
+  it('detecta un ciclo anual puro como el círculo principal', () => {
+    const v = Array.from({ length: 24 }, (_, i) => 1000 + 300 * Math.cos((2 * Math.PI * i) / 12));
+    const { media, ciclos: cs } = ciclos(v);
+    expect(media).toBeCloseTo(1000, 6);
+    expect(cs[0].periodo).toBeCloseTo(12, 6);
+    expect(cs[0].amp).toBeCloseTo(300, 6);
+  });
+});

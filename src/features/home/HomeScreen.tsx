@@ -4,7 +4,7 @@ import { useData } from '../../data/useData';
 import { useStore } from '../../data/store';
 import { calcularSaldos, totales } from '../../domain/balances';
 import { acumuladoDiario, gastoPorPeriodo, resumenMes, ultimoMesConDatos } from '../../domain/reports';
-import { FourierArt } from '../../ui/FourierArt';
+import { FourierCard } from '../../ui/FourierCard';
 import { porAtender } from '../../domain/recurring';
 import { addMonths, dayLabel, daysInMonth, monthKey, monthLong, todayIso } from '../../domain/dates';
 import { dinero } from '../../domain/format';
@@ -30,9 +30,11 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards 
     const acumAnt = acumuladoDiario(d.movs, anterior, daysInMonth(anterior));
     const antHastaHoy = acumAnt[Math.min(dia, acumAnt.length) - 1] ?? 0;
     // Gasto de los últimos 12 meses con datos: es la figura que dibuja el arte de Fourier.
-    const conDatos = [...new Set(d.movs.filter((m) => m.tipo === 'EGRESO' && m.estado === 'PAGADO').map((m) => m.fecha.slice(0, 7)))].sort().slice(-12);
+    const porMes = new Map<string, number>();
+    for (const m of d.movs) if (m.tipo === 'EGRESO' && m.estado === 'PAGADO' && !m.eliminado) porMes.set(m.fecha.slice(0, 7), (porMes.get(m.fecha.slice(0, 7)) ?? 0) + 1);
+    const conDatos = [...porMes.entries()].filter(([, c]) => c >= 5).map(([k]) => k).sort().slice(-24);
     const forma = gastoPorPeriodo(d.movs, conDatos);
-    return { t, sinSaldoInicial, actual, acumAct, acumAnt, antHastaHoy, pagos: porAtender(d.recurrentes, d.movs, hoy), ultimo: ultimoMesConDatos(d.movs), forma };
+    return { t, sinSaldoInicial, actual, acumAct, acumAnt, antHastaHoy, pagos: porAtender(d.recurrentes, d.movs, hoy), ultimo: ultimoMesConDatos(d.movs), forma, mesesForma: conDatos };
   }, [d, mes, anterior, dia, hoy]);
 
   const delta = v.antHastaHoy > 0 ? (v.actual.egresos - v.antHastaHoy) / v.antHastaHoy : null;
@@ -41,11 +43,11 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards 
     <main className="screen">
       <Header />
 
+      <FourierCard meses={v.mesesForma} valores={v.forma} />
+
       <PrimerosPasos onVerCuentas={onVerCuentas} onVerPagos={onVerPagos} />
 
       <section className="card stack hero" onClick={onVerCuentas} role="button" tabIndex={0}>
-        <FourierArt valores={v.forma} className="hero-art" />
-        <span className="hero-caption" title="La figura es tu gasto de los últimos 12 meses con datos, trazado con una serie de Fourier (círculos que giran sobre círculos).">∿ Tu gasto de 12 meses en series de Fourier</span>
         <p className="muted">Disponible</p>
         {Object.keys(v.t.disponible).length === 0 ? <p className="muted">Configura el saldo inicial de tus cuentas.</p> : (
           <div className="hero-figures">

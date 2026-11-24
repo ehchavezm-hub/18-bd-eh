@@ -3,11 +3,14 @@ import { useData } from '../../data/useData';
 import {
   calorCentro, calorGrupoMes, gastoDiario, gastoPor, gastoPorAtributo, gastoPorDiaSemana, gastoPorPeriodo, promedioMovil,
   regla503020, resumenMes, resumenPorAnio, topGastos, ultimoMesConDatos, ultimosMeses,
+  cascada, comparar, flujoGasto, gastoPorDia, gastosPorCategoria, hojasCategoria,
 } from '../../domain/reports';
 import { dayLabel, daysInMonth, monthKey, monthLong, monthShort, todayIso } from '../../domain/dates';
 import { dinero } from '../../domain/format';
 import { enSoles } from '../../domain/model';
 import { BarList, ChartCard, ColumnChart, Heatmap, MonthBars, SegmentedBar, Sparks, StackedColumns } from '../../ui/charts';
+import { Beeswarm, BumpChart, CalendarHeatmap, Dumbbell, Sankey, Treemap, Waterfall } from '../../ui/advanced';
+import { addMonths } from '../../domain/dates';
 import { Segmented, Select, Status } from '../../ui/kit';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -56,6 +59,11 @@ export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { me
       diario, maxDia: diario.indexOf(Math.max(...diario)),
       semana: gastoPorDiaSemana(d.movs, [mes], f),
       top: topGastos(d.movs, mes, 8, f),
+      flujo: flujoGasto(d.movs, (x) => x.startsWith(mes), d.categoriasById, d.nombres.centro, f),
+      hojas: hojasCategoria(d.movs, (x) => x.startsWith(mes), d.categoriasById, f),
+      cascada: cascada(d.movs, (x) => x.startsWith(mes), d.categoriasById, f),
+      vsAnterior: comparar(d.movs, (x) => x.startsWith(addMonths(mes, -1)), (x) => x.startsWith(mes), d.categoriasById, 'categoria', f, 10),
+      enjambre: gastosPorCategoria(d.movs, (x) => x.startsWith(mes), d.categoriasById, f, 6),
     };
   }, [d, mes, centroId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -68,6 +76,9 @@ export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { me
     return {
       ms, res, gasto, prom: promedioMovil(gasto, 3), fv, calor: calor.slice(0, 10), sparks: calor.slice(0, 9),
       centros: calorCentro(d.movs, ms, d.nombres.centro, monthKey, f).slice(0, 8), semana: gastoPorDiaSemana(d.movs, ms, f),
+      bump: calor.slice(0, 7).map((x) => ({ id: x.id, nombre: x.nombre, valores: x.valores })),
+      flujo: flujoGasto(d.movs, (x) => ms.includes(x.slice(0, 7)), d.categoriasById, d.nombres.centro, f),
+      dias: gastoPorDia(d.movs, (x) => ms.includes(x.slice(0, 7)), f),
     };
   }, [d, base, mesesConDatos, centroId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -83,6 +94,21 @@ export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { me
     };
   }, [d, centroId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [anioSel, setAnioSel] = useState<string | null>(null);
+  // Por defecto, el año del último mes con datos suficientes (no un año con un solo gasto de prueba).
+  const anioActivo = anioSel ?? (ultimo ?? A.anios[A.anios.length - 1] ?? hoy).slice(0, 4);
+  const Y = useMemo(() => {
+    const ant = String(+anioActivo - 1);
+    return {
+      dias: gastoPorDia(d.movs, (x) => x.startsWith(anioActivo), f),
+      vs: comparar(d.movs, (x) => x.startsWith(ant), (x) => x.startsWith(anioActivo), d.categoriasById, 'grupo', f, 12),
+      hojas: hojasCategoria(d.movs, (x) => x.startsWith(anioActivo), d.categoriasById, f),
+      flujo: flujoGasto(d.movs, (x) => x.startsWith(anioActivo), d.categoriasById, d.nombres.centro, f),
+      cascada: cascada(d.movs, (x) => x.startsWith(anioActivo), d.categoriasById, f),
+      ant,
+    };
+  }, [d, anioActivo, centroId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const incompleto = (m: string) => { const c = d.cobertura.get(m); return !!c && c !== 'COMPLETO'; };
 
   return (
@@ -92,6 +118,7 @@ export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { me
         <Segmented value={vista} onChange={setVista} options={[{ value: 'mes', label: 'Mes' }, { value: 'tendencias', label: '12 meses' }, { value: 'anios', label: 'Por año' }]} />
         <div className="filters">
           {vista === 'mes' && <Select value={mes} onChange={(v) => setMes(v || null)} placeholder={monthLong(base)} options={meses.map((m) => ({ value: m, label: monthLong(m) }))} />}
+          {vista === 'anios' && <Select value={anioActivo} onChange={(v) => setAnioSel(v || null)} placeholder={anioActivo} options={[...A.anios].reverse().map((y) => ({ value: y, label: y }))} />}
           <Select value={centroId} onChange={setCentroId} placeholder="Todos los centros" options={d.centros.map((c) => ({ value: c.id, label: c.nombre }))} />
         </div>
       </div>
@@ -109,6 +136,29 @@ export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { me
           </div>
           {incompleto(mes) && <Status kind="warn">Este mes tiene registro incompleto en tu historial: los totales pueden ser menores a lo real.</Status>}
           <div className="dash-grid">
+            <div className="wide">
+              <ChartCard title="Flujo del dinero" subtitle={`Para quién → grupo → categoría · ${monthLong(mes)}. Toca un bloque para resaltar su flujo.`}
+                table={{ headers: ['De', 'A', 'Monto (S/)'], rows: M.flujo.enlaces.map((e) => [M.flujo.nodos.find((n) => n.id === e.de)?.nombre ?? '', M.flujo.nodos.find((n) => n.id === e.a)?.nombre ?? '', Math.round(e.valor)]) }}>
+                <Sankey flujo={M.flujo} format={fmt} />
+              </ChartCard>
+            </div>
+            <ChartCard title="Ingresos → gastos → resultado" subtitle="Cascada: cuánto entró, qué se llevó cada grupo y qué quedó"
+              table={{ headers: ['Paso', 'Monto (S/)'], rows: [['Ingresos', M.cascada.ingresos], ...M.cascada.gastos.map((g) => [g.nombre, -g.v] as [string, number]), ['Resultado', M.cascada.resultado]] }}>
+              <Waterfall ingresos={M.cascada.ingresos} gastos={M.cascada.gastos} resultado={M.cascada.resultado} format={fmt} />
+            </ChartCard>
+            <ChartCard title="Mapa del gasto" subtitle="Cada rectángulo es una categoría; el tamaño es lo que gastaste. El color es su grupo."
+              table={{ headers: ['Categoría', 'Grupo', 'Monto (S/)'], rows: M.hojas.map((h2) => [h2.nombre, h2.grupoNombre, Math.round(h2.valor)]) }}>
+              <Treemap hojas={M.hojas} format={fmt} onSelect={(id) => id !== 'SIN' && onVerMovimientos({ mes, categoriaId: id })} />
+            </ChartCard>
+            <ChartCard title={`¿Subió o bajó? · vs. ${monthLong(addMonths(mes, -1))}`} subtitle="Punto gris: mes anterior. Punto azul: este mes."
+              legend={[{ label: monthLong(addMonths(mes, -1)), className: 'muted-series' }, { label: monthLong(mes), className: 'series-1' }]}
+              table={{ headers: ['Categoría', 'Mes anterior', 'Este mes'], rows: M.vsAnterior.map((r) => [r.nombre, r.antes, r.ahora]) }}>
+              <Dumbbell filas={M.vsAnterior} etiquetaAntes="mes anterior" etiquetaAhora="este mes" format={fmt} />
+            </ChartCard>
+            <ChartCard title="¿Muchos gastos chicos o pocos grandes?" subtitle="Cada punto es un gasto (escala logarítmica). La raya es el gasto típico (mediana)."
+              table={{ headers: ['Categoría', 'Gastos', 'Total (S/)'], rows: M.enjambre.map((r) => [r.nombre, r.montos.length, Math.round(r.total)]) }}>
+              <Beeswarm filas={M.enjambre} format={fmt} />
+            </ChartCard>
             <ChartCard title="¿En qué se fue la plata?" subtitle={`Por categoría · ${monthLong(mes)}. Toca una barra para ver sus movimientos.`}
               table={{ headers: ['Categoría', 'Monto (S/)', 'Movimientos'], rows: M.porCategoria.map((p) => [p.nombre, p.valor, p.movimientos]) }}
               footnote={M.resumen.sinTipoCambio > 0 ? `${M.resumen.sinTipoCambio === 1 ? '1 movimiento' : `${M.resumen.sinTipoCambio} movimientos`} en otra moneda sin tipo de cambio no ${M.resumen.sinTipoCambio === 1 ? 'está incluido' : 'están incluidos'}.` : undefined}>
@@ -172,6 +222,24 @@ export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { me
                 incompletos={new Set(T.ms.filter(incompleto))} format={fmt} onSelect={(m) => { setMes(m); setVista('mes'); }} />
             </ChartCard>
           </div>
+          <div className="wide">
+            <ChartCard title="Ranking de grupos mes a mes" subtitle="Puesto de cada grupo de gasto en cada mes (1 = el que más gastó). Toca una línea para resaltarla."
+              table={{ headers: ['Grupo', ...T.ms.map(monthShort)], rows: T.bump.map((x) => [x.nombre, ...x.valores]) }}>
+              <BumpChart periodos={T.ms.map(monthShort)} series={T.bump} format={fmt} />
+            </ChartCard>
+          </div>
+          <div className="wide">
+            <ChartCard title="Flujo del dinero en 12 meses" subtitle="Para quién → grupo → categoría"
+              table={{ headers: ['De', 'A', 'Monto (S/)'], rows: T.flujo.enlaces.map((e) => [T.flujo.nodos.find((n) => n.id === e.de)?.nombre ?? '', T.flujo.nodos.find((n) => n.id === e.a)?.nombre ?? '', Math.round(e.valor)]) }}>
+              <Sankey flujo={T.flujo} format={fmt} />
+            </ChartCard>
+          </div>
+          <div className="wide">
+            <ChartCard title={`Calendario de gasto ${T.ms[T.ms.length - 1]?.slice(0, 4) ?? ''}`} subtitle="Cada cuadrito es un día; más oscuro = más gasto. Toca un día para ver el monto."
+              table={{ headers: ['Día', 'Gasto (S/)'], rows: [...T.dias.entries()].sort().map(([k, v]) => [k, Math.round(v)]) }}>
+              <CalendarHeatmap anio={+(T.ms[T.ms.length - 1] ?? hoy).slice(0, 4)} dias={T.dias} format={fmt} />
+            </ChartCard>
+          </div>
           <ChartCard title="Gasto mensual y tendencia" subtitle="Columnas: gasto de cada mes. Línea gris: promedio de los últimos 3 meses."
             legend={[{ label: 'Gasto del mes', className: 'series-1' }, { label: 'Promedio 3 meses', className: 'muted-series' }]}
             table={{ headers: ['Mes', 'Gasto', 'Promedio 3 meses'], rows: T.ms.map((m, i) => [monthLong(m), T.gasto[i], T.prom[i]]) }}>
@@ -209,6 +277,33 @@ export function ReportsScreen({ onVerMovimientos }: { onVerMovimientos: (f: { me
 
       {vista === 'anios' && (
         <div className="dash-grid">
+          <div className="wide">
+            <ChartCard title={`Calendario de gasto ${anioActivo}`} subtitle="Cada cuadrito es un día; más oscuro = más gasto. Elige el año arriba."
+              table={{ headers: ['Día', 'Gasto (S/)'], rows: [...Y.dias.entries()].sort().map(([k, v]) => [k, Math.round(v)]) }}>
+              <CalendarHeatmap anio={+anioActivo} dias={Y.dias} format={fmt} />
+            </ChartCard>
+          </div>
+          <div className="wide">
+            <ChartCard title={`Flujo del dinero ${anioActivo}`} subtitle="Para quién → grupo → categoría"
+              table={{ headers: ['De', 'A', 'Monto (S/)'], rows: Y.flujo.enlaces.map((e) => [Y.flujo.nodos.find((n) => n.id === e.de)?.nombre ?? '', Y.flujo.nodos.find((n) => n.id === e.a)?.nombre ?? '', Math.round(e.valor)]) }}>
+              <Sankey flujo={Y.flujo} format={fmt} />
+            </ChartCard>
+          </div>
+          <ChartCard title={`${Y.ant} vs. ${anioActivo} por grupo`} subtitle="Punto gris: año anterior. Punto azul: año elegido."
+            legend={[{ label: Y.ant, className: 'muted-series' }, { label: anioActivo, className: 'series-1' }]}
+            table={{ headers: ['Grupo', Y.ant, anioActivo], rows: Y.vs.map((r) => [r.nombre, r.antes, r.ahora]) }}>
+            <Dumbbell filas={Y.vs} etiquetaAntes={Y.ant} etiquetaAhora={anioActivo} format={fmt} />
+          </ChartCard>
+          <ChartCard title={`Mapa del gasto ${anioActivo}`} subtitle="Cada rectángulo es una categoría; el color es su grupo."
+            table={{ headers: ['Categoría', 'Grupo', 'Monto (S/)'], rows: Y.hojas.map((h2) => [h2.nombre, h2.grupoNombre, Math.round(h2.valor)]) }}>
+            <Treemap hojas={Y.hojas} format={fmt} />
+          </ChartCard>
+          <div className="wide">
+            <ChartCard title={`Ingresos → gastos → resultado ${anioActivo}`} subtitle="Cascada del año"
+              table={{ headers: ['Paso', 'Monto (S/)'], rows: [['Ingresos', Y.cascada.ingresos], ...Y.cascada.gastos.map((g) => [g.nombre, -g.v] as [string, number]), ['Resultado', Y.cascada.resultado]] }}>
+              <Waterfall ingresos={Y.cascada.ingresos} gastos={Y.cascada.gastos} resultado={Y.cascada.resultado} format={fmt} />
+            </ChartCard>
+          </div>
           <div className="wide">
             <ChartCard title="Ingresos y egresos por año" subtitle="Todo tu historial, en soles."
               legend={[{ label: 'Ingresos', className: 'series-1' }, { label: 'Egresos', className: 'series-2' }]}

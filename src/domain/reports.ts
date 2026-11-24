@@ -203,3 +203,120 @@ export function calorCentro(movs: Movimiento[], periodos: string[], nombres: Map
   return [...filas.entries()].map(([id, vals]) => ({ id, nombre: nombres.get(id) ?? (id === 'SIN' ? 'Sin centro' : id), valores: vals.map(Math.round), total: vals.reduce((a, b) => a + b, 0) }))
     .sort((a, b) => b.total - a.total);
 }
+
+// ===================== Datos para gráficos avanzados =====================
+export type Periodo = (fecha: string) => boolean;
+const enPeriodo = (m: Movimiento, p: Periodo, f: Filtro) => (pasa(m, f) && m.tipo === 'EGRESO' && p(m.fecha) ? enSoles(m) : null);
+const grupoDe = (cat: Categoria | undefined, cats: Map<string, Categoria>) => (cat?.padreId ? cats.get(cat.padreId) : cat);
+
+export interface Flujo { nodos: { id: string; nombre: string; col: number; grupo: string | null }[]; enlaces: { de: string; a: string; valor: number; grupo: string | null }[] }
+
+/** Flujo del gasto: centro → grupo → categoría (las categorías chicas se agrupan en "Otras de <grupo>"). */
+export function flujoGasto(movs: Movimiento[], p: Periodo, cats: Map<string, Categoria>, centros: Map<string, string>, f: Filtro = {}, maxCat = 12): Flujo {
+  const cg = new Map<string, number>(), gc = new Map<string, number>(), totCat = new Map<string, number>();
+  for (const m of movs) {
+    const v = enPeriodo(m, p, f); if (v === null || v <= 0) continue;
+    const cat = m.categoriaId ? cats.get(m.categoriaId) : undefined;
+    const g = grupoDe(cat, cats)?.id ?? 'SIN';
+    const c = cat?.id ?? 'SIN';
+    const ce = m.centroId ?? 'SIN-C';
+    cg.set(`${ce}|${g}`, (cg.get(`${ce}|${g}`) ?? 0) + v);
+    gc.set(`${g}|${c}`, (gc.get(`${g}|${c}`) ?? 0) + v);
+    totCat.set(c, (totCat.get(c) ?? 0) + v);
+  }
+  const topCats = new Set([...totCat.entries()].sort((a, b) => b[1] - a[1]).slice(0, maxCat).map(([k]) => k));
+  const nodos = new Map<string, Flujo['nodos'][number]>();
+  const enlaces: Flujo['enlaces'] = [];
+  const nombreGrupo = (g: string) => (g === 'SIN' ? 'Sin clasificar' : cats.get(g)?.nombre ?? g);
+  for (const [k, v] of cg) {
+    const [ce, g] = k.split('|');
+    nodos.set(`c:${ce}`, { id: `c:${ce}`, nombre: ce === 'SIN-C' ? 'Sin centro' : centros.get(ce) ?? ce, col: 0, grupo: null });
+    nodos.set(`g:${g}`, { id: `g:${g}`, nombre: nombreGrupo(g), col: 1, grupo: g });
+    enlaces.push({ de: `c:${ce}`, a: `g:${g}`, valor: v, grupo: g });
+  }
+  const agg = new Map<string, number>();
+  for (const [k, v] of gc) {
+    const [g, c] = k.split('|');
+    const destino = topCats.has(c) ? `k:${c}` : `k:otros-${g}`;
+    if (!nodos.has(destino)) nodos.set(destino, { id: destino, nombre: topCats.has(c) ? (c === 'SIN' ? 'Sin categoría' : cats.get(c)?.nombre ?? c) : `Otras de ${nombreGrupo(g)}`, col: 2, grupo: g });
+    agg.set(`g:${g}|${destino}`, (agg.get(`g:${g}|${destino}`) ?? 0) + v);
+  }
+  for (const [k, v] of agg) { const [de, a] = k.split('|'); enlaces.push({ de, a, valor: v, grupo: nodos.get(a)!.grupo }); }
+  return { nodos: [...nodos.values()], enlaces };
+}
+
+export interface Hoja { id: string; nombre: string; grupo: string; grupoNombre: string; valor: number }
+
+/** Categorías con su grupo (para el treemap). */
+export function hojasCategoria(movs: Movimiento[], p: Periodo, cats: Map<string, Categoria>, f: Filtro = {}): Hoja[] {
+  const acc = new Map<string, Hoja>();
+  for (const m of movs) {
+    const v = enPeriodo(m, p, f); if (v === null || v <= 0) continue;
+    const cat = m.categoriaId ? cats.get(m.categoriaId) : undefined;
+    const g = grupoDe(cat, cats);
+    const id = cat?.id ?? 'SIN';
+    const h = acc.get(id) ?? { id, nombre: cat?.nombre ?? 'Sin categoría', grupo: g?.id ?? 'SIN', grupoNombre: g?.nombre ?? 'Sin clasificar', valor: 0 };
+    h.valor += v; acc.set(id, h);
+  }
+  return [...acc.values()].sort((a, b) => b.valor - a.valor);
+}
+
+/** Gasto por día (AAAA-MM-DD → monto). */
+export function gastoPorDia(movs: Movimiento[], p: Periodo, f: Filtro = {}): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const m of movs) { const v = enPeriodo(m, p, f); if (v !== null) out.set(m.fecha, (out.get(m.fecha) ?? 0) + v); }
+  return out;
+}
+
+/** Comparación por grupo o categoría entre dos periodos. */
+export function comparar(movs: Movimiento[], a: Periodo, b: Periodo, cats: Map<string, Categoria>, nivel: 'grupo' | 'categoria', f: Filtro = {}, max = 10) {
+  const acc = new Map<string, { id: string; nombre: string; antes: number; ahora: number }>();
+  for (const m of movs) {
+    const enA = enPeriodo(m, a, f), enB = enPeriodo(m, b, f);
+    if (enA === null && enB === null) continue;
+    const cat = m.categoriaId ? cats.get(m.categoriaId) : undefined;
+    const n = nivel === 'grupo' ? grupoDe(cat, cats) : cat;
+    const id = n?.id ?? 'SIN';
+    const r = acc.get(id) ?? { id, nombre: n?.nombre ?? 'Sin clasificar', antes: 0, ahora: 0 };
+    if (enA !== null) r.antes += enA;
+    if (enB !== null) r.ahora += enB;
+    acc.set(id, r);
+  }
+  return [...acc.values()].map((r) => ({ ...r, antes: Math.round(r.antes), ahora: Math.round(r.ahora) }))
+    .sort((x, y) => Math.max(y.antes, y.ahora) - Math.max(x.antes, x.ahora)).slice(0, max);
+}
+
+/** Montos de cada gasto por categoría (para el enjambre). */
+export function gastosPorCategoria(movs: Movimiento[], p: Periodo, cats: Map<string, Categoria>, f: Filtro = {}, max = 6) {
+  const acc = new Map<string, { id: string; nombre: string; montos: { v: number; desc: string; fecha: string }[]; total: number }>();
+  for (const m of movs) {
+    const v = enPeriodo(m, p, f); if (v === null || v <= 0) continue;
+    const cat = m.categoriaId ? cats.get(m.categoriaId) : undefined;
+    const id = cat?.id ?? 'SIN';
+    const r = acc.get(id) ?? { id, nombre: cat?.nombre ?? 'Sin categoría', montos: [], total: 0 };
+    r.montos.push({ v, desc: m.descripcion, fecha: m.fecha }); r.total += v; acc.set(id, r);
+  }
+  return [...acc.values()].sort((a, b) => b.total - a.total).slice(0, max);
+}
+
+/** Cascada del mes: ingresos, menos cada grupo de gasto, = resultado. */
+export function cascada(movs: Movimiento[], p: Periodo, cats: Map<string, Categoria>, f: Filtro = {}, max = 7) {
+  let ingresos = 0;
+  const grupos = new Map<string, { nombre: string; v: number }>();
+  for (const m of movs) {
+    if (!pasa(m, f) || !p(m.fecha)) continue;
+    const v = enSoles(m); if (v === null) continue;
+    if (m.tipo === 'INGRESO') ingresos += v;
+    else if (m.tipo === 'EGRESO') {
+      const g = grupoDe(m.categoriaId ? cats.get(m.categoriaId) : undefined, cats);
+      const k = g?.id ?? 'SIN';
+      const r = grupos.get(k) ?? { nombre: g?.nombre ?? 'Sin clasificar', v: 0 };
+      r.v += v; grupos.set(k, r);
+    }
+  }
+  const lista = [...grupos.entries()].map(([id, r]) => ({ id, nombre: r.nombre, v: Math.round(r.v) })).sort((a, b) => b.v - a.v);
+  const top = lista.slice(0, max - 1);
+  const resto = lista.slice(max - 1).reduce((s, r) => s + r.v, 0);
+  if (resto > 0) top.push({ id: 'OTROS', nombre: 'Otros grupos', v: resto });
+  return { ingresos: Math.round(ingresos), gastos: top, resultado: Math.round(ingresos - lista.reduce((s, r) => s + r.v, 0)) };
+}

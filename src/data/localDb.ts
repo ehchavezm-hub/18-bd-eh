@@ -7,7 +7,10 @@ export interface OutboxItem {
   table: string;
   op: 'append' | 'update';
   id: string;
-  payload: Row;
+  /** Solo en versiones antiguas (sin cifrar); se migra a `enc` al abrir la bóveda. */
+  payload?: Row;
+  /** Registro cifrado con la bóveda (AES-GCM). */
+  enc?: string;
   createdAt: string;
   attempts: number;
   lastError?: string;
@@ -15,7 +18,10 @@ export interface OutboxItem {
 
 export interface CachedTable {
   table: string;
-  rows: Row[];
+  /** Solo en versiones antiguas (sin cifrar); se migra a `enc`. */
+  rows?: Row[];
+  /** Filas cifradas con la bóveda (AES-GCM). */
+  enc?: string;
   fetchedAt: string;
 }
 

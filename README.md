@@ -5,7 +5,7 @@ App web instalable (PWA) para registrar ingresos, egresos y transferencias desde
 - **Alcance y fases:** [docs/ALCANCE.md](docs/ALCANCE.md)
 - **Arquitectura y decisiones técnicas:** [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md)
 - **Configurar Google y publicar la app:** [docs/CONFIGURAR_GOOGLE.md](docs/CONFIGURAR_GOOGLE.md)
-- **Seguridad (prioridad máxima):** [docs/SEGURIDAD.md](docs/SEGURIDAD.md)
+- **Seguridad (prioridad máxima):** [docs/SEGURIDAD.md](docs/SEGURIDAD.md) · [auditoría](docs/AUDITORIA_SEGURIDAD.md)
 
 
 

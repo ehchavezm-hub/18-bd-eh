@@ -8,6 +8,8 @@ export interface Settings {
   ownerEmail?: string;
   /** ID de la hoja cuya estructura ya se comprobó (evita repetir la comprobación). */
   schemaOk?: string;
+  /** Bóveda: clave de datos envuelta con el PIN y la biometría (nunca en claro). */
+  vault?: unknown;
   lockMethod?: 'webauthn' | 'pin';
   webauthnCredentialId?: string;
   pinHash?: string;

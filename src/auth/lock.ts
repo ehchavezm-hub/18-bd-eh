@@ -4,6 +4,7 @@
  * dependiendo de la cuenta de Google.
  */
 import { loadSettings, saveSettings } from '../config/settings';
+import { b64 as b64std, prfSalt } from './vault';
 
 const b64u = {
   enc(buf: ArrayBuffer | Uint8Array) {
@@ -37,27 +38,35 @@ export async function enrollBiometric(): Promise<void> {
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
       authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
       timeout: 60000,
+      // PRF: la biometría entrega un secreto que abre la bóveda sin escribir el PIN (si el dispositivo lo admite).
+      extensions: { prf: {} } as AuthenticationExtensionsClientInputs,
     },
   })) as PublicKeyCredential | null;
   if (!cred) throw new Error('No se pudo activar Face ID / huella.');
   saveSettings({ lockMethod: 'webauthn', webauthnCredentialId: b64u.enc(cred.rawId) });
 }
 
-export async function verifyBiometric(): Promise<boolean> {
+export interface ResultadoBiometria { ok: boolean; prf: ArrayBuffer | null }
+
+export async function verifyBiometric(): Promise<ResultadoBiometria> {
   const id = loadSettings().webauthnCredentialId;
-  if (!id) return false;
+  if (!id) return { ok: false, prf: null };
+  const sal = prfSalt();
   try {
-    const res = await navigator.credentials.get({
+    const res = (await navigator.credentials.get({
       publicKey: {
         challenge: random(32),
         allowCredentials: [{ type: 'public-key', id: b64u.dec(id) }],
         userVerification: 'required',
         timeout: 60000,
+        ...(sal ? { extensions: { prf: { eval: { first: b64std.dec(sal) } } } as AuthenticationExtensionsClientInputs } : {}),
       },
-    });
-    return !!res;
+    })) as PublicKeyCredential | null;
+    if (!res) return { ok: false, prf: null };
+    const ext = res.getClientExtensionResults() as { prf?: { results?: { first?: ArrayBuffer } } };
+    return { ok: true, prf: ext.prf?.results?.first ?? null };
   } catch {
-    return false;
+    return { ok: false, prf: null };
   }
 }
 
@@ -68,9 +77,11 @@ export async function hashPin(pin: string, saltB64: string): Promise<string> {
 }
 
 export const isValidPin = (pin: string) => /^\d{4,6}$/.test(pin);
+/** Los PIN nuevos deben tener 6 dígitos (1 000 000 combinaciones en lugar de 10 000). */
+export const isValidNewPin = (pin: string) => /^\d{6}$/.test(pin);
 
 export async function setPin(pin: string): Promise<void> {
-  if (!isValidPin(pin)) throw new Error('El PIN debe tener de 4 a 6 números.');
+  if (!isValidNewPin(pin)) throw new Error('El PIN debe tener 6 números.');
   const salt = b64u.enc(random(16));
   saveSettings({ pinSalt: salt, pinHash: await hashPin(pin, salt), lockMethod: loadSettings().lockMethod ?? 'pin' });
 }

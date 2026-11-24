@@ -107,6 +107,7 @@ export function MovementForm({ editar, prefill, device, onDone }: { editar?: Mov
   async function guardar() {
     setError(null);
     if (!montoPagado || montoPagado <= 0) return setError('Escribe un monto mayor que cero.');
+    if (montoPagado > 100_000_000 || (monto ?? 0) > 100_000_000) return setError('El monto parece demasiado grande. Revisa que esté bien escrito.');
     if (conversion && (!monto || monto <= 0)) return setError(`Escribe cuánto se cobró en la cuenta (${simbolo(moneda)}).`);
     if (!monto) return setError('Escribe un monto mayor que cero.');
     if (!cuenta) return setError(tipo === 'INGRESO' ? 'Elige a qué cuenta entra el dinero.' : 'Elige de qué cuenta sale el dinero.');

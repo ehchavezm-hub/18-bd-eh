@@ -11,6 +11,7 @@ import type { DataAdapter } from './adapter';
 import { DataError } from './adapter';
 import { localDb, type OutboxItem } from './localDb';
 import { nowStamp } from '../domain/dates';
+import { cifrar, descifrar } from '../auth/vault';
 
 /** Tablas que la app mantiene en el teléfono. */
 export const SYNC_TABLES: TableName[] = [
@@ -59,7 +60,18 @@ export async function initStore(db: DataAdapter, deviceName: string) {
   const cached = await localDb.cache.toArray();
   const tables: Record<string, Row[]> = {};
   let lastSync: string | null = null;
-  for (const c of cached) { tables[c.table] = c.rows; if (!lastSync || c.fetchedAt > lastSync) lastSync = c.fetchedAt; }
+  for (const c of cached) {
+    let rows: Row[] | null = null;
+    if (c.enc) { try { rows = await descifrar<Row[]>(c.enc); } catch { rows = null; } }
+    else if (c.rows) { rows = c.rows; await localDb.cache.put({ table: c.table, enc: await cifrar(rows), fetchedAt: c.fetchedAt }); } // migración: cifrar lo que estaba en claro
+    if (!rows) { await localDb.cache.delete(c.table); continue; } // no se pudo descifrar: se vuelve a descargar
+    tables[c.table] = rows;
+    if (!lastSync || c.fetchedAt > lastSync) lastSync = c.fetchedAt;
+  }
+  // migración: cifrar los cambios pendientes que estaban en claro
+  for (const it of await localDb.outbox.toArray()) {
+    if (it.payload && !it.enc) await localDb.outbox.put({ ...it, payload: undefined, enc: await cifrar(it.payload) });
+  }
   const pending = await localDb.outbox.count();
   set({ tables, pending, lastSync, ready: cached.length > 0 });
 }
@@ -73,8 +85,9 @@ function upsertLocal(table: string, idCol: string, row: Row, mode: 'append' | 'u
   return rows;
 }
 
-async function persistTable(table: string, rows: Row[]) {
-  await localDb.cache.put({ table, rows, fetchedAt: state.lastSync ?? nowStamp() });
+// Nota: el cifrado (asíncrono) se hace ANTES de abrir la transacción de IndexedDB.
+async function cifrarTabla(table: string, rows: Row[]) {
+  return { table, enc: await cifrar(rows), fetchedAt: state.lastSync ?? nowStamp() };
 }
 
 /** Guarda un registro nuevo (o cambios) localmente y lo encola para enviarlo a la hoja. */
@@ -82,9 +95,11 @@ export async function save(table: TableName, row: Row, op: 'append' | 'update' =
   const idCol = idColumn(table);
   const id = String(row[idCol] ?? '');
   const rows = upsertLocal(table, idCol, row, op);
+  const tabla = await cifrarTabla(table, rows);
+  const enc = await cifrar(row);
   await localDb.transaction('rw', localDb.cache, localDb.outbox, async () => {
-    await persistTable(table, rows);
-    await localDb.outbox.add({ table, op, id, payload: row, createdAt: nowStamp(), attempts: 0 });
+    await localDb.cache.put(tabla);
+    await localDb.outbox.add({ table, op, id, enc, createdAt: nowStamp(), attempts: 0 });
   });
   set({ tables: { ...state.tables, [table]: rows }, pending: state.pending + 1 });
   void sync();
@@ -116,8 +131,9 @@ export function sync(): Promise<void> {
         const batch: OutboxItem[] = [first];
         if (first.op === 'append') for (const it of items.slice(1)) { if (it.op === 'append' && it.table === first.table) batch.push(it); else break; }
         try {
-          if (first.op === 'append') await adapter.append(first.table as TableName, batch.map((b) => b.payload));
-          else await adapter.update(first.table as TableName, first.id, first.payload);
+          const payloads = await Promise.all(batch.map(async (b) => (b.enc ? descifrar<Row>(b.enc) : (b.payload as Row))));
+          if (first.op === 'append') await adapter.append(first.table as TableName, payloads);
+          else await adapter.update(first.table as TableName, first.id, payloads[0]);
           await localDb.outbox.bulkDelete(batch.map((b) => b.seq!));
           set({ pending: await localDb.outbox.count() });
         } catch (e) {
@@ -128,9 +144,8 @@ export function sync(): Promise<void> {
       // 2) Traer la versión actual de las tablas.
       const fresh = await adapter.readMany(SYNC_TABLES);
       const stamp = nowStamp();
-      await localDb.transaction('rw', localDb.cache, async () => {
-        for (const [t, rows] of Object.entries(fresh)) await localDb.cache.put({ table: t, rows, fetchedAt: stamp });
-      });
+      const cifradas = await Promise.all(Object.entries(fresh).map(async ([t, rows]) => ({ table: t, enc: await cifrar(rows), fetchedAt: stamp })));
+      await localDb.transaction('rw', localDb.cache, async () => { await localDb.cache.bulkPut(cifradas); });
       set({ tables: { ...state.tables, ...fresh }, lastSync: stamp, ready: true });
     } catch (e) {
       set({ error: e instanceof DataError ? e.message : 'No se pudo sincronizar. Se reintentará.', authExpired: e instanceof DataError && e.kind === 'auth' });

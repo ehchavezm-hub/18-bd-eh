@@ -149,8 +149,27 @@ function Header() {
         <h1>{saludo}</h1>
         <p className="muted small">{DIAS_SEM[ahora.getDay()]} {ahora.getDate()} de {MESES_L[ahora.getMonth()]}</p>
       </div>
-      <SyncBadge pending={s.pending} syncing={s.syncing} error={s.error} />
+      <div className="head-actions">
+        <BotonDiscreto />
+        <SyncBadge pending={s.pending} syncing={s.syncing} error={s.error} />
+      </div>
     </div>
+  );
+}
+
+const DISCRETO = 'finanzas.discreto';
+/** Modo discreto: difumina los montos (para usar la app en público). */
+export function aplicarDiscreto() { try { document.documentElement.classList.toggle('discreto', localStorage.getItem(DISCRETO) === '1'); } catch { /* nada */ } }
+function BotonDiscreto() {
+  const [on, setOn] = useState(() => { try { return localStorage.getItem(DISCRETO) === '1'; } catch { return false; } });
+  return (
+    <button type="button" className="btn link icon-btn" aria-pressed={on} aria-label={on ? 'Mostrar montos' : 'Ocultar montos'} title={on ? 'Mostrar montos' : 'Ocultar montos (modo discreto)'}
+      onClick={() => { const v = !on; setOn(v); try { localStorage.setItem(DISCRETO, v ? '1' : '0'); } catch { /* nada */ } aplicarDiscreto(); }}>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {on ? <><path d="M3 3l18 18" /><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6 0 10 7 10 7a17.6 17.6 0 0 1-3.2 3.9M6.6 6.6C3.9 8.3 2 12 2 12s4 7 10 7a9.7 9.7 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>
+          : <><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>}
+      </svg>
+    </button>
   );
 }
 

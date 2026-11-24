@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { clearSettings, GOOGLE_API_KEY, GOOGLE_APP_ID, GOOGLE_CLIENT_ID, loadSettings, saveSettings } from './config/settings';
 import { SCHEMA_VERSION } from './config/schema';
-import { getEmail, getToken, signIn, signOut } from './auth/google';
+import { getEmail, getToken, olvidarToken, signIn, signOut } from './auth/google';
+import { cerrarVault, vaultAbierto } from './auth/vault';
 import { lockConfigured } from './auth/lock';
 import { SheetsAdapter } from './data/sheetsAdapter';
 import { checkSchema } from './data/schemaCheck';
@@ -56,16 +57,30 @@ export function App() {
   const hiddenAt = useRef<number | null>(null);
   const reload = () => setSettings(loadSettings());
 
-  // Bloqueo automático al volver a la app tras unos minutos.
+  // Bloqueo: al salir de la app más de 2 minutos, o tras 5 minutos sin tocar nada con la app abierta.
+  // Al bloquear se olvida el token de Google de la memoria y se oculta el contenido (pantalla de privacidad).
   useEffect(() => {
+    const bloquear = () => { setUnlocked(false); setAdminGate('closed'); olvidarToken(); };
+    let ultimaActividad = Date.now();
+    const actividad = () => { ultimaActividad = Date.now(); };
     const onVis = () => {
-      if (document.visibilityState === 'hidden') hiddenAt.current = Date.now();
-      else if (hiddenAt.current && Date.now() - hiddenAt.current > (loadSettings().lockAfterMinutes ?? 2) * 60_000) {
-        setUnlocked(false); setAdminGate('closed');
+      if (document.visibilityState === 'hidden') {
+        hiddenAt.current = Date.now();
+        document.documentElement.classList.add('privacy');
+      } else {
+        document.documentElement.classList.remove('privacy');
+        if (hiddenAt.current && Date.now() - hiddenAt.current > (loadSettings().lockAfterMinutes ?? 2) * 60_000) bloquear();
+        ultimaActividad = Date.now();
       }
     };
+    const id = setInterval(() => { if (Date.now() - ultimaActividad > 5 * 60_000) bloquear(); }, 15_000);
     document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
+    for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const) window.addEventListener(ev, actividad, { passive: true });
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+      for (const ev of ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const) window.removeEventListener(ev, actividad);
+    };
   }, []);
 
   if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY || !GOOGLE_APP_ID) {
@@ -77,7 +92,8 @@ export function App() {
     );
   }
   if (!lockConfigured()) return <LockSetupScreen onDone={() => { setUnlocked(true); reload(); }} />;
-  if (!unlocked) return <UnlockScreen title="Mis Finanzas" onUnlock={() => setUnlocked(true)} />;
+  // Sin la bóveda abierta no se puede leer nada guardado en el dispositivo.
+  if (!unlocked || !vaultAbierto()) return <UnlockScreen title="Mis Finanzas" onUnlock={() => setUnlocked(true)} />;
 
   if (!signedIn) {
     return (
@@ -120,7 +136,7 @@ export function App() {
       onAuthExpired={() => setSignedIn(false)}
       onSignOut={async () => { await signOut(); setSignedIn(false); setAdminGate('closed'); }}
       onChangeSheet={async () => { await resetStore(); saveSettings({ spreadsheetId: undefined, spreadsheetTitle: undefined, schemaOk: undefined }); setAdminGate('closed'); reload(); }}
-      onWipe={async () => { await signOut(); await resetStore(); await localDb.delete(); clearSettings(); location.reload(); }}
+      onWipe={async () => { await signOut(); await resetStore(); await localDb.delete(); cerrarVault(); clearSettings(); try { localStorage.clear(); } catch { /* nada */ } location.reload(); }}
     />
   );
 }

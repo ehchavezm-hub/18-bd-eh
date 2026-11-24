@@ -70,6 +70,9 @@ export function hasToken() {
   return !!token && Date.now() < token.expiresAt;
 }
 
+/** Olvida el token de la memoria sin cerrar la sesión de Google (al bloquear la app). */
+export function olvidarToken() { token = null; }
+
 export async function signOut() {
   if (token && window.google) (window.google as GoogleOAuth).accounts.oauth2.revoke(token.value);
   token = null;

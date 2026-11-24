@@ -4,6 +4,7 @@ import type { DataAdapter } from '../data/adapter';
 import { DataError } from '../data/adapter';
 import type { Row } from '../lib/rows';
 import { getState, initStore, resetStore, save, sync } from '../data/store';
+import { crearVault } from '../auth/vault';
 import type { TableName } from '../config/schema';
 
 function fake(): DataAdapter & { sheet: Record<string, Row[]>; offline: boolean; calls: string[] } {
@@ -21,7 +22,7 @@ function fake(): DataAdapter & { sheet: Record<string, Row[]>; offline: boolean;
 }
 
 describe('store', () => {
-  beforeEach(async () => { await resetStore(); });
+  beforeEach(async () => { await crearVault('482193'); await resetStore(); });
 
   it('guarda sin internet y envía al reconectar, en orden', async () => {
     const db = fake();

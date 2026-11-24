@@ -16,6 +16,8 @@ export interface Settings {
   pinSalt?: string;
   /** Minutos sin usar la app antes de pedir Face ID / PIN otra vez. */
   lockAfterMinutes?: number;
+  /** La persona dijo "Ahora no" a activar Face ID tras entrar con PIN. */
+  bioRechazado?: boolean;
 }
 
 export function loadSettings(): Settings {

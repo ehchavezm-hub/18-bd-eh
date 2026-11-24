@@ -5,7 +5,9 @@ import { useStore, sync } from '../../data/store';
 import { CatalogEditor, secuenciaId, slugId, type CatalogSpec } from './CatalogEditor';
 import { CLASES_CATEGORIA, CLASES_PATRIMONIO, FRECUENCIAS, TIPOS_50_30_20, TIPOS_CUENTA, TIPOS_INSTITUCION } from '../../config/lists';
 import type { Opcion } from '../../ui/kit';
-import { Status } from '../../ui/kit';
+import { Status, toast } from '../../ui/kit';
+import { activarBiometria } from '../lock/LockScreens';
+import { tieneEnvolturaBiometrica } from '../../auth/vault';
 import { dinero } from '../../domain/format';
 
 const op = (xs: string[]): Opcion[] => xs.map((x) => ({ value: x, label: x.charAt(0) + x.slice(1).toLowerCase() }));
@@ -13,7 +15,8 @@ const s = (v: unknown) => (v === null || v === undefined ? '' : String(v));
 
 /** Módulo Administrador: catálogos, datos y opciones de este dispositivo. */
 export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe, seccionInicial }: { onSignOut: () => void; onChangeSheet: () => void; onExit: () => void; onWipe: () => void; seccionInicial?: string | null }) {
-  const st = loadSettings();
+  const [bioVer, setBioVer] = useState(0);
+  const st = useMemo(() => loadSettings(), [bioVer]); // eslint-disable-line react-hooks/exhaustive-deps
   const d = useData();
   const store = useStore();
   const [abierto, setAbierto] = useState<CatalogSpec | null>(null);
@@ -133,7 +136,16 @@ export function AdminScreen({ onSignOut, onChangeSheet, onExit, onWipe, seccionI
       </section>
       <section className="card stack">
         <h2>Este dispositivo</h2>
-        <p className="muted">Bloqueo: {st.webauthnCredentialId ? 'Biometría (Face ID, huella, Touch ID o Windows Hello) + PIN' : 'PIN'}</p>
+        <p className="muted">Bloqueo: {st.webauthnCredentialId ? (tieneEnvolturaBiometrica() ? 'Face ID / huella abre la app sin PIN (PIN de respaldo)' : 'Face ID / huella + PIN al abrir (este dispositivo no permite abrir los datos solo con Face ID)') : 'Solo PIN'}</p>
+        {(!st.webauthnCredentialId || !tieneEnvolturaBiometrica()) && (
+          <button className="btn" onClick={async () => {
+            try {
+              const r = await activarBiometria();
+              toast(r === 'prf' ? 'Listo: la próxima vez bastará Face ID.' : 'Face ID activado. Este dispositivo pedirá además el PIN al abrir la app.');
+              setBioVer((v) => v + 1);
+            } catch { toast('No se pudo activar Face ID / huella.'); }
+          }}>{st.webauthnCredentialId ? 'Volver a activar Face ID / huella' : 'Activar Face ID / huella'}</button>
+        )}
         <p className="muted">Cuenta vinculada: {st.ownerEmail ?? '—'}</p>
         <button className="btn secondary" onClick={onChangeSheet}>Cambiar hoja de cálculo</button>
         <button className="btn secondary" onClick={onSignOut}>Cerrar sesión de Google</button>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { biometricAvailable, enrollBiometric, esperaPin, isValidNewPin, isValidPin, setPin, verifyBiometric, verifyPin } from '../../auth/lock';
 import { abrirConPrf, agregarPrf, tieneEnvolturaBiometrica, vaultAbierto } from '../../auth/vault';
-import { loadSettings } from '../../config/settings';
+import { loadSettings, saveSettings } from '../../config/settings';
 
 /** Primera vez: activar Face ID / huella / Windows Hello y un PIN de 6 dígitos. Crea la bóveda cifrada. */
 export function LockSetupScreen({ onDone }: { onDone: () => void }) {
@@ -48,6 +48,14 @@ export function LockSetupScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+/** Activa Face ID / huella y guarda la llave biométrica de la bóveda (la bóveda debe estar abierta). */
+export async function activarBiometria(): Promise<'prf' | 'solo-desbloqueo'> {
+  await enrollBiometric();
+  const r = await verifyBiometric();
+  if (r.prf) { await agregarPrf(r.prf); return 'prf'; }
+  return 'solo-desbloqueo';
+}
+
 /**
  * Desbloqueo: Face ID / huella / Windows Hello primero, PIN como respaldo.
  * Además de desbloquear, abre la bóveda (clave para leer los datos cifrados del dispositivo).
@@ -58,6 +66,7 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [prfPendiente, setPrfPendiente] = useState<ArrayBuffer | null>(null);
+  const [ofrecerBio, setOfrecerBio] = useState(false);
 
   async function tryBio() {
     setError(null);
@@ -79,9 +88,28 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
       return;
     }
     if (prfPendiente && !tieneEnvolturaBiometrica()) await agregarPrf(prfPendiente);
+    // Sin Face ID activado en este dispositivo: se ofrece activarlo (una vez, sin insistir si dices "Ahora no").
+    if (!hasBio && !loadSettings().bioRechazado && (await biometricAvailable())) { setOfrecerBio(true); return; }
     onUnlock();
   }
+  async function aceptarBio() {
+    setError(null);
+    try { await activarBiometria(); onUnlock(); } catch { setError('No se pudo activar Face ID. Puedes intentarlo luego en Configuración.'); }
+  }
+
   useEffect(() => { if (hasBio) void tryBio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (ofrecerBio) {
+    return (
+      <main className="screen center">
+        <h1>¿Entrar con Face ID?</h1>
+        <p className="muted">La próxima vez bastará mirar el teléfono, sin escribir el PIN. El PIN sigue siendo tu respaldo.</p>
+        {error && <div className="msg error">{error}</div>}
+        <button className="btn" onClick={aceptarBio}>Activar Face ID / huella</button>
+        <button className="btn link" onClick={() => { saveSettings({ bioRechazado: true }); onUnlock(); }}>Ahora no</button>
+      </main>
+    );
+  }
 
   return (
     <main className="screen center">

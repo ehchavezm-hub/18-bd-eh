@@ -103,11 +103,18 @@ ul.plain li:last-child { border-bottom: 0; }
   }
   .tabbar button { flex-direction: row; justify-content: flex-start; gap: 10px; font-size: 0.95rem; min-height: 44px; padding: 8px 12px; border-radius: 10px; }
   .tabbar button[aria-current='page'] { background: color-mix(in srgb, var(--primary) 12%, transparent); }
-  .tabbar + * , .screen { max-width: 960px; }
-  body:has(.tabbar) .screen { margin-left: calc(200px + max(24px, (100vw - 200px - 960px) / 2)); padding-bottom: 32px; }
+  /* El contenido ocupa el espacio a la derecha del menú, sin salirse de la ventana. */
+  body:has(.tabbar) .screen {
+    width: auto; max-width: 960px; padding-bottom: 32px;
+    margin-left: max(224px, calc(200px + (100% - 200px - 960px) / 2)); margin-right: 24px;
+  }
   .btn { min-height: 40px; }
   .btn:hover:not(:disabled) { filter: brightness(1.08); }
 }
 @media (hover: hover) and (pointer: fine) {
   .tabbar button:hover { color: var(--text); }
 }
+
+/* Deja espacio al botón de Configuración (⚙︎) fijo arriba a la derecha. */
+body:has(.tabbar) .screen > .row:first-child { padding-right: 44px; }
+.gear { position: fixed; top: calc(env(safe-area-inset-top) + 10px); right: 10px; z-index: 5; }

@@ -15,3 +15,20 @@ describe('PIN', () => {
     expect(await verifyPin('0000')).toBe(false);
   });
 });
+
+import { esperaPin } from '../auth/lock';
+describe('límite de intentos de PIN', () => {
+  beforeEach(() => localStorage.clear());
+  it('bloquea tras 5 fallos y no acepta ni el PIN correcto mientras espera', async () => {
+    await setPin('4821');
+    for (let i = 0; i < 5; i++) expect(await verifyPin('0000')).toBe(false);
+    expect(esperaPin()).toBeGreaterThan(0);
+    expect(await verifyPin('4821')).toBe(false);
+  });
+  it('un acierto reinicia el contador', async () => {
+    await setPin('4821');
+    for (let i = 0; i < 4; i++) await verifyPin('0000');
+    expect(await verifyPin('4821')).toBe(true);
+    expect(esperaPin()).toBe(0);
+  });
+});

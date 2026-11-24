@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { notificationsEnabled } from '../pagos/notify';
 import { useData } from '../../data/useData';
 import { useStore } from '../../data/store';
 import { calcularSaldos, totales } from '../../domain/balances';
@@ -35,6 +36,8 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards 
   return (
     <main className="screen">
       <Header />
+
+      <PrimerosPasos onVerCuentas={onVerCuentas} onVerPagos={onVerPagos} />
 
       <section className="card stack hero" onClick={onVerCuentas} role="button" tabIndex={0}>
         <p className="muted">Disponible</p>
@@ -124,13 +127,63 @@ export function EstadoPago({ o }: { o: Ocurrencia }) {
   }
 }
 
+const DIAS_SEM = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MESES_L = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
 function Header() {
   const s = useStore();
+  const ahora = new Date();
+  const h = ahora.getHours();
+  const saludo = h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
   return (
     <div className="row">
-      <h1>Inicio</h1>
+      <div>
+        <h1>{saludo}</h1>
+        <p className="muted small">{DIAS_SEM[ahora.getDay()]} {ahora.getDate()} de {MESES_L[ahora.getMonth()]}</p>
+      </div>
       <SyncBadge pending={s.pending} syncing={s.syncing} error={s.error} />
     </div>
+  );
+}
+
+const OCULTAR = 'finanzas.primeros-pasos.oculto';
+
+/** Primeros pasos: lo que falta para que los números sean reales (se oculta al completar). */
+function PrimerosPasos({ onVerCuentas, onVerPagos }: { onVerCuentas: () => void; onVerPagos: () => void }) {
+  const d = useData();
+  const [oculto, setOculto] = useState(() => { try { return localStorage.getItem(OCULTAR) === '1'; } catch { return false; } });
+  const usadas = d.cuentas.filter((c) => c.activa && c.tipo !== 'POR CONFIRMAR' && c.clasePatrimonio !== 'POR COBRAR');
+  const conSaldo = usadas.filter((c) => c.saldoInicial !== null).length;
+  const pagosActivos = d.recurrentes.some((r) => r.activo);
+  const instalada = typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
+  const avisos = notificationsEnabled();
+  const pasos = [
+    { ok: conSaldo > 0 && conSaldo === usadas.length, titulo: 'Fija el saldo de tus cuentas', detalle: `${conSaldo} de ${usadas.length} cuentas listas`, accion: onVerCuentas },
+    { ok: pagosActivos, titulo: 'Activa tus pagos fijos', detalle: 'Luz, teléfono, internet, pensión…', accion: onVerPagos },
+    { ok: avisos, titulo: 'Activa los avisos', detalle: 'Te recuerda los pagos próximos', accion: onVerPagos },
+    { ok: instalada, titulo: 'Instala la app', detalle: 'iPhone: Compartir → Añadir a inicio · PC: ícono de instalar', accion: undefined },
+  ];
+  const hechos = pasos.filter((p) => p.ok).length;
+  if (oculto || hechos === pasos.length) return null;
+  return (
+    <section className="card stack onboarding">
+      <div className="row">
+        <div><h2>Primeros pasos</h2><p className="muted small">{hechos} de {pasos.length} listos</p></div>
+        <button className="btn link small" onClick={() => { setOculto(true); try { localStorage.setItem(OCULTAR, '1'); } catch { /* nada */ } }}>Ocultar</button>
+      </div>
+      <div className="progress" role="progressbar" aria-valuenow={hechos} aria-valuemin={0} aria-valuemax={pasos.length}><span style={{ width: `${(hechos / pasos.length) * 100}%` }} /></div>
+      <ul className="plain steps">
+        {pasos.map((p) => (
+          <li key={p.titulo}>
+            <button type="button" className={`step${p.ok ? ' done' : ''}`} onClick={p.accion} disabled={!p.accion || p.ok}>
+              <span className="step-check" aria-hidden="true">{p.ok ? '✓' : ''}</span>
+              <span className="mov-main"><span>{p.titulo}</span><span className="muted small">{p.ok ? 'Listo' : p.detalle}</span></span>
+              {!p.ok && p.accion && <span className="muted" aria-hidden="true">›</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

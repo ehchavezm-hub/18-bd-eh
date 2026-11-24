@@ -125,7 +125,7 @@ describe('montos', () => {
     expect(parseMonto('1,234.50')).toBe(1234.5);
     expect(parseMonto('12,5')).toBe(12.5);
     expect(parseMonto('abc')).toBeNull();
-    expect(dinero(-1234.5)).toBe('−S/ 1,234.50');
+    expect(dinero(-1234.5)).toBe('−S/\u00a01,234.50');
   });
 });
 

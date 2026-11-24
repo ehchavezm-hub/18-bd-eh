@@ -46,7 +46,7 @@ export function AccountsScreen({ onVerMovimientos }: { onVerMovimientos: (cuenta
               return (
                 <li key={c.id} className="acct">
                   <button type="button" className="acct-main" onClick={() => onVerMovimientos(c.id)}>
-                    <span className="acct-title"><span className="avatar sm" style={{ '--c': colorInstitucion(c.institucionId) } as CSSProperties} aria-hidden="true">{(inst.get(c.institucionId) ?? c.institucionId).charAt(0)}</span>{c.nombre}{!c.activa && <span className="muted small"> (inactiva)</span>}</span>
+                    <span className="acct-title"><span className="avatar sm" style={{ '--c': colorInstitucion(c.institucionId) } as CSSProperties} aria-hidden="true">{(inst.get(c.institucionId) ?? c.institucionId).charAt(0)}</span><span className="clamp2">{c.nombre}</span>{!c.activa && <span className="muted small"> (inactiva)</span>}</span>
                     <span className="muted small">{inst.get(c.institucionId) ?? c.institucionId} · {c.moneda}</span>
                   </button>
                   <div className="acct-side">

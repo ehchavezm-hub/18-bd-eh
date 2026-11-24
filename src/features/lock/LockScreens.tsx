@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { biometricAvailable, enrollBiometric, isValidPin, setPin, verifyBiometric, verifyPin } from '../../auth/lock';
+import { biometricAvailable, enrollBiometric, esperaPin, isValidPin, setPin, verifyBiometric, verifyPin } from '../../auth/lock';
 import { loadSettings } from '../../config/settings';
 
 /** Primera vez: activar Face ID / huella / Windows Hello y un PIN de respaldo. */
@@ -53,7 +53,9 @@ export function UnlockScreen({ title, onUnlock, onCancel }: { title: string; onU
     if (await verifyBiometric()) onUnlock(); else setError('No se reconoció. Intenta de nuevo o usa tu PIN.');
   }
   async function tryPin() {
-    if (await verifyPin(pin)) onUnlock(); else { setError('PIN incorrecto.'); setPinValue(''); }
+    if (esperaPin() > 0) { setError(`Demasiados intentos. Espera ${esperaPin()} segundos.`); return; }
+    if (await verifyPin(pin)) onUnlock();
+    else { const w = esperaPin(); setError(w > 0 ? `PIN incorrecto. Por seguridad, espera ${w} segundos antes de volver a intentar.` : 'PIN incorrecto.'); setPinValue(''); }
   }
   useEffect(() => { if (hasBio) void tryBio(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

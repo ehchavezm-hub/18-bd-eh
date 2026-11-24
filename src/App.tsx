@@ -188,10 +188,12 @@ function Main(p: {
 
   if (!store.ready) {
     return (
-      <main className="screen center">
+      <main className="screen" aria-busy="true">
         <h1>Cargando tus datos…</h1>
         <p className="muted">{store.error ?? 'La primera vez puede tardar unos segundos. Luego funcionará también sin internet.'}</p>
-        {store.error && <button className="btn" onClick={() => void sync()}>Reintentar</button>}
+        {store.error ? <button className="btn" onClick={() => void sync()}>Reintentar</button> : (
+          <><div className="skeleton hero-sk" /><div className="kpis"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div><div className="skeleton chart-sk" /></>
+        )}
       </main>
     );
   }

@@ -7,7 +7,8 @@ const nf0 = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 });
 
 export function dinero(v: number, moneda = 'PEN', decimales = true): string {
   const s = (decimales ? nf2 : nf0).format(Math.abs(v));
-  return `${v < 0 ? '−' : ''}${simbolo(moneda)} ${s}`;
+  // Espacio no separable: el símbolo nunca queda en otra línea que el número.
+  return `${v < 0 ? '−' : ''}${simbolo(moneda)}\u00a0${s}`;
 }
 
 export const compacto = (v: number) => (Math.abs(v) >= 1000 ? `${nf0.format(v / 1000)} mil` : nf0.format(v));

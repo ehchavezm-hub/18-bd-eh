@@ -62,7 +62,10 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 let toastSet: ((t: string | null) => void) | null = null;
-export const toast = (t: string) => toastSet?.(t);
+export const toast = (t: string) => {
+  try { (navigator as Navigator & { vibrate?: (p: number) => boolean }).vibrate?.(12); } catch { /* sin vibración */ }
+  toastSet?.(t);
+};
 export function ToastHost() {
   const [t, setT] = useState<string | null>(null);
   useEffect(() => { toastSet = setT; return () => { toastSet = null; }; }, []);

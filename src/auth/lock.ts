@@ -75,10 +75,28 @@ export async function setPin(pin: string): Promise<void> {
   saveSettings({ pinSalt: salt, pinHash: await hashPin(pin, salt), lockMethod: loadSettings().lockMethod ?? 'pin' });
 }
 
+const INTENTOS = 'finanzas.pin.intentos.v1';
+interface Intentos { fallos: number; bloqueadoHasta: number }
+const leerIntentos = (): Intentos => { try { return JSON.parse(localStorage.getItem(INTENTOS) ?? '') as Intentos; } catch { return { fallos: 0, bloqueadoHasta: 0 }; } };
+const guardarIntentos = (i: Intentos) => { try { localStorage.setItem(INTENTOS, JSON.stringify(i)); } catch { /* sin almacenamiento */ } };
+
+/** Segundos que faltan para poder volver a intentar el PIN (0 = se puede). */
+export const esperaPin = (ahora = Date.now()) => Math.max(0, Math.ceil((leerIntentos().bloqueadoHasta - ahora) / 1000));
+
+/**
+ * Verifica el PIN con límite de intentos: tras 5 fallos seguidos espera 30 s,
+ * y la espera se duplica con cada fallo adicional (máximo 1 hora).
+ */
 export async function verifyPin(pin: string): Promise<boolean> {
   const { pinHash, pinSalt } = loadSettings();
-  if (!pinHash || !pinSalt) return false;
-  return (await hashPin(pin, pinSalt)) === pinHash;
+  if (!pinHash || !pinSalt || esperaPin() > 0) return false;
+  const ok = (await hashPin(pin, pinSalt)) === pinHash;
+  const i = leerIntentos();
+  if (ok) { guardarIntentos({ fallos: 0, bloqueadoHasta: 0 }); return true; }
+  const fallos = (i.fallos ?? 0) + 1;
+  const espera = fallos >= 5 ? Math.min(3600, 30 * 2 ** (fallos - 5)) : 0;
+  guardarIntentos({ fallos, bloqueadoHasta: espera ? Date.now() + espera * 1000 : 0 });
+  return false;
 }
 
 export const lockConfigured = () => {

@@ -3,7 +3,8 @@ import { notificationsEnabled } from '../pagos/notify';
 import { useData } from '../../data/useData';
 import { useStore } from '../../data/store';
 import { calcularSaldos, totales } from '../../domain/balances';
-import { acumuladoDiario, resumenMes, ultimoMesConDatos } from '../../domain/reports';
+import { acumuladoDiario, gastoPorPeriodo, resumenMes, ultimoMesConDatos } from '../../domain/reports';
+import { FourierArt } from '../../ui/FourierArt';
 import { porAtender } from '../../domain/recurring';
 import { addMonths, dayLabel, daysInMonth, monthKey, monthLong, todayIso } from '../../domain/dates';
 import { dinero } from '../../domain/format';
@@ -28,7 +29,10 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards 
     const acumAct = acumuladoDiario(d.movs, mes, dia);
     const acumAnt = acumuladoDiario(d.movs, anterior, daysInMonth(anterior));
     const antHastaHoy = acumAnt[Math.min(dia, acumAnt.length) - 1] ?? 0;
-    return { t, sinSaldoInicial, actual, acumAct, acumAnt, antHastaHoy, pagos: porAtender(d.recurrentes, d.movs, hoy), ultimo: ultimoMesConDatos(d.movs) };
+    // Gasto de los últimos 12 meses con datos: es la figura que dibuja el arte de Fourier.
+    const conDatos = [...new Set(d.movs.filter((m) => m.tipo === 'EGRESO' && m.estado === 'PAGADO').map((m) => m.fecha.slice(0, 7)))].sort().slice(-12);
+    const forma = gastoPorPeriodo(d.movs, conDatos);
+    return { t, sinSaldoInicial, actual, acumAct, acumAnt, antHastaHoy, pagos: porAtender(d.recurrentes, d.movs, hoy), ultimo: ultimoMesConDatos(d.movs), forma };
   }, [d, mes, anterior, dia, hoy]);
 
   const delta = v.antHastaHoy > 0 ? (v.actual.egresos - v.antHastaHoy) / v.antHastaHoy : null;
@@ -40,6 +44,8 @@ export function HomeScreen({ onPagar, onVerPagos, onVerCuentas, onVerDashboards 
       <PrimerosPasos onVerCuentas={onVerCuentas} onVerPagos={onVerPagos} />
 
       <section className="card stack hero" onClick={onVerCuentas} role="button" tabIndex={0}>
+        <FourierArt valores={v.forma} className="hero-art" />
+        <span className="hero-caption" title="La figura es tu gasto de los últimos 12 meses con datos, trazado con una serie de Fourier (círculos que giran sobre círculos).">∿ Tu gasto de 12 meses en series de Fourier</span>
         <p className="muted">Disponible</p>
         {Object.keys(v.t.disponible).length === 0 ? <p className="muted">Configura el saldo inicial de tus cuentas.</p> : (
           <div className="hero-figures">
